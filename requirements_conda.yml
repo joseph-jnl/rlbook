@@ -1,0 +1,7 @@
+name: rlbook
+
+dependencies:
+  - pandas
+  - numpy
+  - altair
+  - jupyterlab
