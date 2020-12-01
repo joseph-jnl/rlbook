@@ -16,7 +16,7 @@ rlbook
 
 
 
-Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
+Code for my walkthrough of Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
 
 
 * Free software: MIT license
@@ -26,7 +26,10 @@ Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
 Features
 --------
 
-* TODO
+* Ch2 Bandits (rlbook/bandits.py)
+'''
+streamlit run streamlit/ch2_bandits.py
+'''
 
 Credits
 -------
