@@ -26,10 +26,10 @@ Code for my walkthrough of Reinforcement Learning An Introduction by Richard Sut
 Features
 --------
 
-* Ch2 Bandits (rlbook/bandits.py)
-'''
+* Ch 2 Bandits (rlbook/bandits.py)
+```
 streamlit run streamlit/ch2_bandits.py
-'''
+```
 
 Credits
 -------
