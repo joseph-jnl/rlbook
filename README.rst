@@ -27,9 +27,9 @@ Features
 --------
 
 * Ch 2 Bandits (rlbook/bandits.py)
-.. code-block:: bash
+.. code-block::
 
-streamlit run streamlit/ch2_bandits.py
+   streamlit run streamlit/ch2_bandits.py
 
 
 Credits
