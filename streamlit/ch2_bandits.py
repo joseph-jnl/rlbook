@@ -68,17 +68,18 @@ bar.progress(1.0)
 
 st.header("Epsilon greedy bandit")
 bar_percent = [0]
+bar_increment = 1/(len(EPSILONS)+2)
 bar = st.progress(sum(bar_percent))
 for b in e_bandits.values():
     b.run(N, runs=RUNS)
-    bar_percent.append(1/(len(EPSILONS)+2))
+    bar_percent.append(bar_increment)
     bar.progress(sum(bar_percent))
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
+df_ar
 df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
 df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index()
-bar_percent.append(1/(len(EPSILONS)+2))
-df_mean
+bar_percent.append(bar_increment)
 p3 = (
     p9.ggplot(df_mean, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
     + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, realistic initialization")

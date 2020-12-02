@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from abc import ABCMeta, abstractmethod
 
 
 class NormalTestbed:
@@ -45,7 +46,7 @@ class NormalTestbed:
         return R
 
 
-class Bandit:
+class Bandit(metaclass=ABCMeta):
     """Base Bandit class
 
     Attributes:
@@ -78,18 +79,17 @@ class Bandit:
         
         return list(Q.keys())[At]
 
+    @abstractmethod
     def select_action(self):
-        raise NotImplementedError()
+        """Select action logic
+        """
+        pass
 
+    @abstractmethod
     def run(self, steps, runs=1):
         """Run bandit for specified number of steps and optionally multiple runs
         """
-        self.action_values = np.empty((steps, 4, runs))
-        for k in range(runs):
-            self.action_values[:, 0, k] = k
-            for n in range(steps):
-                self.action_values[n, 1, k] = n
-                self.action_values[n, 2, k], self.action_values[n, 3, k] = self.select_action()
+        pass
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
@@ -140,5 +140,6 @@ class EpsilonGreedy(Bandit):
                 self.action_values[n, 1, k] = n
                 self.action_values[n, 2, k], self.action_values[n, 3, k] = self.select_action()
                 self.action_values[n, 4, k] = self.epsilon
-        
+            # Reset Q for next run
+            self.Q = {a: 0 for a in self.testbed.expected_values}
     
