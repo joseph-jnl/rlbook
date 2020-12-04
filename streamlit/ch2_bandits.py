@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from rlbook.bandits import NormalTestbed, EpsilonGreedy
+from rlbook.bandits import EpsilonGreedy
+from rlbook.testbeds import NormalTestbed
 import altair as alt
 import plotnine as p9
 import time
@@ -42,6 +43,7 @@ for b in e_bandits.values():
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
 df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
+df_ar
 df_estimate = testbed.estimate_distribution(1000)
 
 p = (
