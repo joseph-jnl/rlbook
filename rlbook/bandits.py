@@ -1,13 +1,16 @@
 import pandas as pd
 import numpy as np
 from abc import ABCMeta, abstractmethod
+from concurrent.futures import ProcessPoolExecutor
+from typing import Callable, Type
+from rlbook.testbeds import Testbed
 
 
 class Bandit(metaclass=ABCMeta):
     """Base Bandit class
 
     Attributes:
-        testbed (TestBed object):
+        testbed (TestBed class object):
             Testbed object that returns a Reward value for a given Action
         columns (list of strings): 
             List of numpy column names to use when outputting results
@@ -18,10 +21,18 @@ class Bandit(metaclass=ABCMeta):
             Initialized as None, and created with the run method.
     """
     
-    def __init__(self, testbed):
+    def __init__(self, testbed: Type[Testbed], 
+            # Q_init: Callable
+            ):
         self.testbed = testbed
         self.columns = ['Run', 'Step', 'Action', 'Reward',]
         self.action_values = None
+        self.Q = {a: 0 for a in self.testbed.expected_values}
+        self.nQ = {a: 0 for a in self.Q}
+        self.At = self.argmax(self.Q)
+
+    def initialization(self):
+        self.testbed.reset_ev()
         self.Q = {a: 0 for a in self.testbed.expected_values}
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
@@ -45,18 +56,34 @@ class Bandit(metaclass=ABCMeta):
         """
         pass
 
-    def run(self, steps, runs=1):
+    def run(self, steps, n_runs=1, n_jobs=4):
         """Run bandit for specified number of steps and optionally multiple runs
         """
-        self.action_values = np.empty((steps, 4, runs))
-        for k in range(runs):
-            self.action_values[:, 0, k] = k
+
+        self.action_values = self._serialrun(steps, n_runs)
+
+        # if n_runs==1:
+        #     self.action_values = _serialrun(steps, 0)
+        # else:
+        #     self.action_values = _multirun(steps, n_runs)
+
+    def _serialrun(self, steps, n_runs):
+        action_values = np.empty((steps, 4, n_runs))
+        for k in range(n_runs):
+            action_values[:, 0, k] = k
             for n in range(steps):
-                self.action_values[n, 1, k] = n
-                self.action_values[n, 2, k], self.action_values[n, 3, k] = self.select_action()
+                action_values[n, 1, k] = n
+                action_values[n, 2, k], action_values[n, 3, k] = self.select_action()
 
             # Reset Q for next run
+            self.testbed.reset_ev()
             self.Q = {a: 0 for a in self.testbed.expected_values}
+
+        return action_values
+        
+    def _multirun(self, steps, n_runs):
+        pass
+
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
@@ -96,6 +123,7 @@ class EpsilonGreedy(Bandit):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
+        Add epsilon coefficient used for greedy bandit
         """
         df = super().output_df()
         df['epsilon'] = self.epsilon
