@@ -31,15 +31,11 @@ EXPECTED_VALUES = {
     10: {'mean': -1, 'var': 1},
     }
 
-st.header("Epsilon greedy bandit")
+st.header("Single Run - Epsilon greedy bandit")
 testbed = NormalTestbed(EXPECTED_VALUES)
 e_bandits = {e: EpsilonGreedy(testbed, epsilon=e) for e in EPSILONS}
-bar_percent = [0]
-bar = st.progress(sum(bar_percent))
 for b in e_bandits.values():
     b.run(N)
-    bar_percent.append(1/(len(EPSILONS)+2))
-    bar.progress(sum(bar_percent))
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
 df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
@@ -58,22 +54,20 @@ p = (
 
 p2 = (
     p9.ggplot(df_ar, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
-    + p9.ggtitle('Average reward across steps (n) for a single run over different epsilons, realistic initialization')
+    + p9.ggtitle('Average reward across steps (n) for a single run over different epsilons, 0 initialization')
     + p9.geom_line()
     + p9.theme(figure_size=(20,9))
 )
 st.pyplot(p9.ggplot.draw(p))
-bar_percent.append(1/(len(EPSILONS)+2))
-bar.progress(sum(bar_percent))
 st.pyplot(p9.ggplot.draw(p2))
-bar.progress(1.0)
 
-st.header("Epsilon greedy bandit")
+st.header(f"{RUNS} Runs - Epsilon greedy bandit")
 bar_percent = [0]
 bar_increment = 1/(len(EPSILONS)+2)
 bar = st.progress(sum(bar_percent))
+
 for b in e_bandits.values():
-    b.run(N, runs=RUNS)
+    b.run(N, n_runs=RUNS)
     bar_percent.append(bar_increment)
     bar.progress(sum(bar_percent))
 
@@ -84,7 +78,7 @@ df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index(
 bar_percent.append(bar_increment)
 p3 = (
     p9.ggplot(df_mean, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
-    + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, realistic initialization")
+    + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, 0 initialization")
     + p9.geom_line()
     + p9.theme(figure_size=(20,9))
 )
