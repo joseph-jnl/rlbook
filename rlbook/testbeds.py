@@ -9,20 +9,14 @@ class Testbed(metaclass=ABCMeta):
     Attributes:
         expected_values (dict): 
             Dict of parameters describing the Testbed distribution 
-        p_drift (float): 
-            Probability for underlying reward to change ranging from 0.0 to 1.0, defaults to 0
-        drift_mag (float): 
-            Magnitude of reward change when drifting, defaults to 1.0
     """
     
-    def __init__(self, expected_values, p_drift=0., drift_mag=1.0):
+    def __init__(self, expected_values):
         self.expected_values = expected_values
         self.initial_ev = expected_values
-        self.p_drift=p_drift
-        self.drift_mag=drift_mag
 
     def estimate_distribution(self, n=1000) -> pd.DataFrame:
-        """Provide an estimate of the normal testbed values across all arms
+        """Provide an estimate of the testbed values across all arms
         n (int): Number of iterations to execute in testbed
         """
         R = pd.DataFrame(columns=['Reward', 'Action', 'Strategy'])
@@ -51,10 +45,16 @@ class NormalTestbed(Testbed):
             Dict of means and variances describing Normal Distribution of each arm in the testbed
             Example:
                 expected_values = {1: {'mean': 0.5, 'var': 1}, 2: {'mean': 1, 'var': 1}}
+        p_drift (float): 
+            Probability for underlying reward to change ranging from 0.0 to 1.0, defaults to 0
+        drift_mag (float): 
+            Magnitude of reward change when drifting, defaults to 1.0
     """
     
     def __init__(self, expected_values, p_drift=0., drift_mag=1.0):
-        super().__init__(expected_values, p_drift, drift_mag)
+        self.p_drift=p_drift
+        self.drift_mag=drift_mag
+        super().__init__(expected_values)
         
     def action_value(self, action, shape=None) -> np.ndarray or float:
         """Return reward value given action
