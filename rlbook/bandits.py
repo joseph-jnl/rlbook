@@ -6,6 +6,13 @@ from typing import Callable, Type
 from rlbook.testbeds import Testbed
 
 
+def init_zero(testbed):
+    """
+    """
+    return {a: 0 for a in testbed.expected_values}
+    
+
+
 class Bandit(metaclass=ABCMeta):
     """Base Bandit class
 
@@ -19,21 +26,22 @@ class Bandit(metaclass=ABCMeta):
             Stores results of the actions values method. 
             Contains Run, Step, Action, and Reward
             Initialized as None, and created with the run method.
+        Q_init (initialization function):
+            Function to use for initializing Q values, defaults to zero init
     """
     
     def __init__(self, testbed: Type[Testbed], 
-            # Q_init: Callable
+            Q_init: Callable = init_zero
             ):
         self.testbed = testbed
         self.columns = ['Run', 'Step', 'Action', 'Reward',]
         self.action_values = None
-        self.Q = {a: 0 for a in self.testbed.expected_values}
-        self.nQ = {a: 0 for a in self.Q}
-        self.At = self.argmax(self.Q)
+        self.Q_init = Q_init 
+        self.initialization()
 
     def initialization(self):
         self.testbed.reset_ev()
-        self.Q = {a: 0 for a in self.testbed.expected_values}
+        self.Q = self.Q_init(self.testbed)
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
 
@@ -76,8 +84,7 @@ class Bandit(metaclass=ABCMeta):
                 action_values[n, 2, k], action_values[n, 3, k] = self.select_action()
 
             # Reset Q for next run
-            self.testbed.reset_ev()
-            self.Q = {a: 0 for a in self.testbed.expected_values}
+            self.initialization()
 
         return action_values
         
