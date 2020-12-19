@@ -16,7 +16,7 @@ st.set_page_config(
 st.title('Multi-armed Bandits')
 
 N = 1000
-RUNS = 100
+RUNS = 1000
 EPSILONS = [0, 0.01, 0.1]
 EXPECTED_VALUES = {
     1: {'mean': 0.5, 'var': 1},
@@ -67,12 +67,11 @@ bar_increment = 1/(len(EPSILONS)+2)
 bar = st.progress(sum(bar_percent))
 
 for b in e_bandits.values():
-    b.run(N, n_runs=RUNS)
+    b.run(N, n_runs=RUNS, n_jobs=8)
     bar_percent.append(bar_increment)
     bar.progress(sum(bar_percent))
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
-df_ar
 df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
 df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index()
 bar_percent.append(bar_increment)

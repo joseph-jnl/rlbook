@@ -11,8 +11,6 @@ def init_zero(testbed):
     """
     return {a: 0 for a in testbed.expected_values}
     
-
-
 class Bandit(metaclass=ABCMeta):
     """Base Bandit class
 
@@ -68,12 +66,10 @@ class Bandit(metaclass=ABCMeta):
         """Run bandit for specified number of steps and optionally multiple runs
         """
 
-        self.action_values = self._serialrun(steps, n_runs)
-
-        # if n_runs==1:
-        #     self.action_values = _serialrun(steps, 0)
-        # else:
-        #     self.action_values = _multirun(steps, n_runs)
+        if n_runs==1:
+            self.action_values = self._singlerun(steps, 0)
+        else:
+            self.action_values = self._multirun(steps, n_runs, n_jobs=n_jobs)
 
     def _serialrun(self, steps, n_runs):
         action_values = np.empty((steps, 4, n_runs))
@@ -87,10 +83,23 @@ class Bandit(metaclass=ABCMeta):
             self.initialization()
 
         return action_values
-        
-    def _multirun(self, steps, n_runs):
-        pass
 
+    def _singlerun(self, steps, idx_run):
+        action_values = np.empty((steps, 4, 1))
+        action_values[:, 0, 0] = idx_run
+        for n in range(steps):
+            action_values[n, 1, 0] = n
+            action_values[n, 2, 0], action_values[n, 3, 0] = self.select_action()
+
+        # Reset Q for next run
+        self.initialization()
+
+        return action_values
+
+    def _multirun(self, steps, n_runs, n_jobs=4):
+        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+            action_values = executor.map(self._singlerun, [steps for n in range(n_runs)], list(range(n_runs)))
+        return np.squeeze(np.stack(list(action_values), axis=2))
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
