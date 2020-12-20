@@ -31,7 +31,7 @@ EXPECTED_VALUES = {
     10: {'mean': -1, 'var': 1},
     }
 
-st.header("Single Run - Epsilon greedy bandit")
+st.header("Single Run - Epsilon greedy bandit - 0 init")
 testbed = NormalTestbed(EXPECTED_VALUES)
 e_bandits = {e: EpsilonGreedy(testbed, epsilon=e) for e in EPSILONS}
 for b in e_bandits.values():
@@ -61,7 +61,7 @@ p2 = (
 st.pyplot(p9.ggplot.draw(p))
 st.pyplot(p9.ggplot.draw(p2))
 
-st.header(f"{RUNS} Runs - Epsilon greedy bandit")
+st.header(f"{RUNS} Runs - Epsilon greedy bandit - 0 init")
 bar_percent = [0]
 bar_increment = 1/(len(EPSILONS)+2)
 bar = st.progress(sum(bar_percent))

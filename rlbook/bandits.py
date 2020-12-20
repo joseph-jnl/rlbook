@@ -120,11 +120,19 @@ class EpsilonGreedy(Bandit):
         epsilon (float): 
             epsilon coefficient configuring the probability to explore non-optimal actions,
             ranging from 0.0 to 1.0
+        alpha (float):
+            Constant step size ranging from 0.0 to 1.0, resulting in Q being the weighted average
+            of past rewards and initial estimate of Q
+            
+            Note on varying step sizes such as using 1/n:
+                self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
+            Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
     """
 
-    def __init__(self, testbed, epsilon=0.1):
+    def __init__(self, testbed, epsilon=0.1, alpha=0.1):
         super().__init__(testbed)
         self.epsilon = epsilon 
+        self.alpha = alpha
     
     def select_action(self):
         if np.random.binomial(1, self.epsilon) == 1:
@@ -133,7 +141,7 @@ class EpsilonGreedy(Bandit):
             self.At = self.argmax(self.Q)
         R = self.testbed.action_value(self.At)
         self.nQ[self.At] += 1 
-        self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
+        self.Q[self.At] = self.Q[self.At] + self.alpha*(R-self.Q[self.At])
         
         return (self.At, R)
 
