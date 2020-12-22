@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from typing import Callable, Type
 from rlbook.testbeds import Testbed
+import secrets
 
 
 def init_zero(testbed):
@@ -11,6 +12,14 @@ def init_zero(testbed):
     """
     return {a: 0 for a in testbed.expected_values}
     
+def init_optimistic(testbed):
+    """
+    """
+    op_val = abs(max([testbed.action_value(a) for a in testbed.expected_values])) * 5
+    testbed.reset_ev()
+
+    return {a: int(op_val) for a in testbed.expected_values}
+
 class Bandit(metaclass=ABCMeta):
     """Base Bandit class
 
@@ -62,11 +71,13 @@ class Bandit(metaclass=ABCMeta):
         """
         pass
 
-    def run(self, steps, n_runs=1, n_jobs=4):
+    def run(self, steps, n_runs=1, n_jobs=4, serial=False):
         """Run bandit for specified number of steps and optionally multiple runs
         """
 
-        if n_runs==1:
+        if serial:
+            self.action_values = self._serialrun(steps, n_runs)
+        elif n_runs==1:
             self.action_values = self._singlerun(steps, 0)
         else:
             self.action_values = self._multirun(steps, n_runs, n_jobs=n_jobs)
@@ -85,6 +96,9 @@ class Bandit(metaclass=ABCMeta):
         return action_values
 
     def _singlerun(self, steps, idx_run):
+        # Generate different random states for parallel workers
+        np.random.seed()
+
         action_values = np.empty((steps, 4, 1))
         action_values[:, 0, 0] = idx_run
         for n in range(steps):
@@ -129,8 +143,8 @@ class EpsilonGreedy(Bandit):
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
     """
 
-    def __init__(self, testbed, epsilon=0.1, alpha=0.1):
-        super().__init__(testbed)
+    def __init__(self, testbed, Q_init: Callable = init_zero, epsilon=0.1, alpha=0.1):
+        super().__init__(testbed, Q_init)
         self.epsilon = epsilon 
         self.alpha = alpha
     
@@ -141,7 +155,8 @@ class EpsilonGreedy(Bandit):
             self.At = self.argmax(self.Q)
         R = self.testbed.action_value(self.At)
         self.nQ[self.At] += 1 
-        self.Q[self.At] = self.Q[self.At] + self.alpha*(R-self.Q[self.At])
+        # self.Q[self.At] = self.Q[self.At] + self.alpha*(R-self.Q[self.At])
+        self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
         
         return (self.At, R)
 
