@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from rlbook.bandits import EpsilonGreedy
+from rlbook.bandits import EpsilonGreedy, init_optimistic
 from rlbook.testbeds import NormalTestbed
 import altair as alt
 import plotnine as p9
@@ -38,7 +38,7 @@ for b in e_bandits.values():
     b.run(N)
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
-df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
+df_ar['Average Reward'] = df_ar.groupby(['epsilon', 'Run']).expanding()['Reward'].mean().reset_index(drop=True)
 df_ar
 df_estimate = testbed.estimate_distribution(1000)
 
@@ -72,12 +72,63 @@ for b in e_bandits.values():
     bar.progress(sum(bar_percent))
 
 df_ar = pd.concat([b.output_df() for b in e_bandits.values()]).reset_index(drop=True)
-df_ar['Average Reward'] = df_ar.groupby(['Run', 'epsilon']).expanding()['Reward'].mean().reset_index(drop=True)
+df_ar['Average Reward'] = df_ar.groupby(['epsilon', 'Run']).expanding()['Reward'].mean().reset_index(drop=True)
 df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index()
 bar_percent.append(bar_increment)
 p3 = (
     p9.ggplot(df_mean, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
     + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, 0 initialization")
+    + p9.geom_line()
+    + p9.theme(figure_size=(20,9))
+)
+st.pyplot(p9.ggplot.draw(p3))
+bar.progress(1.0)
+
+
+st.header(f"{RUNS} Runs - Epsilon greedy bandit - Optimistic init")
+bar_percent = [0]
+bar_increment = 1/(len(EPSILONS)+2)
+bar = st.progress(sum(bar_percent))
+
+testbed = NormalTestbed(EXPECTED_VALUES)
+e_opti_bandits = {e: EpsilonGreedy(testbed, epsilon=e, Q_init=init_optimistic) for e in EPSILONS}
+for b in e_opti_bandits.values():
+    b.run(N, n_runs=RUNS, n_jobs=8)
+    bar_percent.append(bar_increment)
+    bar.progress(sum(bar_percent))
+
+df_ar = pd.concat([b.output_df() for b in e_opti_bandits.values()]).reset_index(drop=True)
+df_ar['Average Reward'] = df_ar.groupby(['epsilon', 'Run']).expanding()['Reward'].mean().reset_index(drop=True)
+df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index()
+bar_percent.append(bar_increment)
+p3 = (
+    p9.ggplot(df_mean, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
+    + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, optimistic initialization")
+    + p9.geom_line()
+    + p9.theme(figure_size=(20,9))
+)
+st.pyplot(p9.ggplot.draw(p3))
+bar.progress(1.0)
+
+st.header(f"SERIAL PROCESSING: {RUNS} Runs - Epsilon greedy bandit - Optimistic init")
+bar_percent = [0]
+bar_increment = 1/(len(EPSILONS)+2)
+bar = st.progress(sum(bar_percent))
+
+testbed = NormalTestbed(EXPECTED_VALUES)
+e_opti_bandits = {e: EpsilonGreedy(testbed, epsilon=e, Q_init=init_optimistic) for e in EPSILONS}
+for b in e_opti_bandits.values():
+    b.run(N, n_runs=RUNS, serial=True)
+    bar_percent.append(bar_increment)
+    bar.progress(sum(bar_percent))
+
+df_ar = pd.concat([b.output_df() for b in e_opti_bandits.values()]).reset_index(drop=True)
+df_ar['Average Reward'] = df_ar.groupby(['epsilon', 'Run']).expanding()['Reward'].mean().reset_index(drop=True)
+df_mean = df_ar.groupby(['Step', 'epsilon']).mean('Average Reward').reset_index()
+bar_percent.append(bar_increment)
+p3 = (
+    p9.ggplot(df_mean, p9.aes(x='Step', y='Average Reward', color='factor(epsilon)'))
+    + p9.ggtitle(f"Average reward across steps (n) for {RUNS} runs over different epsilons, optimistic initialization")
     + p9.geom_line()
     + p9.theme(figure_size=(20,9))
 )
