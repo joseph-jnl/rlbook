@@ -108,3 +108,5 @@ ENV/
 
 # vim
 *.swo
+*.swp
+*.swn
