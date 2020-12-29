@@ -16,8 +16,10 @@ rlbook
 
 
 
-Code for my walkthrough of Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
-
+Code for my walkthrough of: 
+--
+Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
+http://incompleteideas.net/book/the-book.html
 
 * Free software: MIT license
 * Documentation: https://rlbook.readthedocs.io.
@@ -29,7 +31,7 @@ Quickstart
 * Ch 2 Bandits (rlbook/bandits.py)
 .. code-block::
 
-   streamlit run streamlit/ch2_bandits.py
+   streamlit run streamlit_apps/ch2_bandits.py
 
 
 Credits
