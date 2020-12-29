@@ -23,7 +23,7 @@ Code for my walkthrough of Reinforcement Learning An Introduction by Richard Sut
 * Documentation: https://rlbook.readthedocs.io.
 
 
-Features
+Quickstart
 --------
 
 * Ch 2 Bandits (rlbook/bandits.py)
