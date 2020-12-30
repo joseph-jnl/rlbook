@@ -4,4 +4,4 @@ export PYENV_VERSION=rlbook
 # nohup jupyter lab &> log.jupyter&
 echo streamlit run $STREAM_DEFAULT
 export PYTHONPATH=~/projects/rlbook/
-streamlit run streamlit/$STREAM_DEFAULT
+streamlit run streamlit_apps/$STREAM_DEFAULT
