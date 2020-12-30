@@ -2,9 +2,11 @@ import pandas as pd
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
 from typing import Callable, Type
 from rlbook.testbeds import Testbed
 import secrets
+import warnings
 
 
 def init_zero(testbed):
@@ -44,6 +46,7 @@ class Bandit(metaclass=ABCMeta):
             "Step",
             "Action",
             "Reward",
+            "Optimal_Action",
         ]
         self.action_values = None
         self.Q_init = Q_init
@@ -78,17 +81,19 @@ class Bandit(metaclass=ABCMeta):
         if serial:
             self.action_values = self._serialrun(steps, n_runs)
         elif n_runs >= 4:
+            if n_jobs > cpu_count():
+                warnings.warn(f"Warning: running n_jobs: {n_jobs}, with only {cpu_count()} cpu's detected", RuntimeWarning)
             self.action_values = self._multirun(steps, n_runs, n_jobs=n_jobs)
         else:
             self.action_values = self._serialrun(steps, n_runs)
 
     def _serialrun(self, steps, n_runs):
-        action_values = np.empty((steps, 4, n_runs))
+        action_values = np.empty((steps, 5, n_runs))
         for k in range(n_runs):
             action_values[:, 0, k] = k
             for n in range(steps):
                 action_values[n, 1, k] = n
-                action_values[n, 2, k], action_values[n, 3, k] = self.select_action()
+                action_values[n, 2, k], action_values[n, 3, k], action_values[n, 4, k]  = self.select_action()
 
             # Reset Q for next run
             self.initialization()
@@ -99,11 +104,11 @@ class Bandit(metaclass=ABCMeta):
         # Generate different random states for parallel workers
         np.random.seed()
 
-        action_values = np.empty((steps, 4, 1))
+        action_values = np.empty((steps, 5, 1))
         action_values[:, 0, 0] = idx_run
         for n in range(steps):
             action_values[n, 1, 0] = n
-            action_values[n, 2, 0], action_values[n, 3, 0] = self.select_action()
+            action_values[n, 2, 0], action_values[n, 3, 0], action_values[n, 4, 0]  = self.select_action()
 
         # Reset Q for next run
         self.initialization()
@@ -121,7 +126,7 @@ class Bandit(metaclass=ABCMeta):
         """Reshape action_values numpy array and output as pandas dataframe"""
         n_rows = self.action_values.shape[2] * self.action_values.shape[0]
         df = pd.DataFrame(
-            data=self.action_values.transpose(2, 0, 1).reshape(-1, 4),
+            data=self.action_values.transpose(2, 0, 1).reshape(-1, 5),
             columns=self.columns,
         )
 
@@ -154,6 +159,7 @@ class EpsilonGreedy(Bandit):
             self.At = np.random.choice(list(self.Q.keys()))
         else:
             self.At = self.argmax(self.Q)
+        A_best = np.argmax([ev['mean'] for ev in self.testbed.expected_values.values()])
         R = self.testbed.action_value(self.At)
         self.nQ[self.At] += 1
         if self.alpha is None:
@@ -163,7 +169,7 @@ class EpsilonGreedy(Bandit):
         else:
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
-        return (self.At, R)
+        return (self.At, R, A_best)
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
