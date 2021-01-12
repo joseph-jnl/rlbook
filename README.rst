@@ -16,10 +16,8 @@ rlbook
 
 
 
-Code for my walkthrough of: 
---
-Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto
-http://incompleteideas.net/book/the-book.html
+Code for my walkthrough of:  
+**Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto** (http://incompleteideas.net/book/the-book.html)
 
 * Free software: MIT license
 * Documentation: https://rlbook.readthedocs.io.
