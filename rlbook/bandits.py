@@ -35,6 +35,8 @@ class Bandit(metaclass=ABCMeta):
             Stores results of the actions values method.
             Contains Run, Step, Action, and Reward
             Initialized as None, and created with the run method.
+        n (int):
+            Current step in a run
         Q_init (initialization function):
             Function to use for initializing Q values, defaults to zero init
         Q (float):
@@ -50,27 +52,29 @@ class Bandit(metaclass=ABCMeta):
     def __init__(self, testbed: Type[Testbed], Q_init: Callable = init_zero):
         self.testbed = testbed
         self.columns = [
-            "Run",
-            "Step",
-            "Action",
-            "Reward",
-            "Average Reward",
-            "Optimal Action",
+            "run",
+            "step",
+            "action",
+            "reward",
+            "average_reward",
+            "optimal_action",
         ]
         self.action_values = None
+        self.n = 1
         self.Q_init = Q_init
         self.Q = self.Q_init(self.testbed)
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
-        self.uR = None
+        self.uR = 0
 
     def initialization(self):
         """Initialize bandit for a new run"""
         self.testbed.reset_ev()
+        self.n = 1
         self.Q = self.Q_init(self.testbed)
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
-        self.uR = None
+        self.uR = 0
 
     def argmax(self, Q):
         """Return max estimate Q, if tie between actions, choose at random between tied actions"""
@@ -110,9 +114,7 @@ class Bandit(metaclass=ABCMeta):
             action_values[:, 0, k] = k
             for n in range(steps):
                 action_values[n, 1, k] = n
-                output = self.select_action()
-                for i, col in enumerate(self.columns, start=2):
-                    action_values[n, i, k] = getattr(output, col)
+                action_values[n, 2:, k] = self.select_action()
 
             # Reset Q for next run
             self.initialization()
@@ -127,9 +129,7 @@ class Bandit(metaclass=ABCMeta):
         action_values[:, 0, 0] = idx_run
         for n in range(steps):
             action_values[n, 1, 0] = n
-            output = self.select_action()
-            for i, col in enumerate(self.columns, start=2):
-                action_values[n, i, 0] = getattr(output, col)
+            action_values[n, 2:, 0] = self.select_action()
 
         # Reset Q for next run
         self.initialization()
@@ -168,13 +168,14 @@ class EpsilonGreedy(Bandit):
             Note on varying step sizes such as using 1/n:
                 self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
+        Output (namedtuple):
+            Named tuple containing outputs when select action method is called.
     """
 
     def __init__(self, testbed, Q_init: Callable = init_zero, epsilon=0.1, alpha=0.1):
         super().__init__(testbed, Q_init)
         self.epsilon = epsilon
         self.alpha = alpha
-        self.Output = namedtuple('Output', self.columns)
 
     def select_action(self):
         if np.random.binomial(1, self.epsilon) == 1:
@@ -191,18 +192,9 @@ class EpsilonGreedy(Bandit):
         else:
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
-            "run",
-            "step",
-            "action",
-            "reward",
-            "average_reward",
-            "optimal_action",
-        output = self.Output
-        output.action = self.At
-        output.reward = R
-        output.optimal_action = A_best
+        self.uR = self.uR + (R - self.uR) / self.n
 
-        return output
+        return (self.At, R, self.uR, A_best)
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
