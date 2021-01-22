@@ -1,17 +1,12 @@
-import streamlit as st
 import pandas as pd
 import plotnine as p9
+import matplotlib.pyplot as plt
 
 
 def reward_plotter(bandits, run_config, plot=True):
-    bar_percent = [0]
-    bar_increment = 1 / (len(bandits) + 1)
-    bar = st.progress(sum(bar_percent))
 
     for b in bandits.values():
         b.run(**run_config)
-        bar_percent.append(bar_increment)
-        bar.progress(sum(bar_percent))
 
     df_ar = pd.concat([b.output_df() for b in bandits.values()]).reset_index(drop=True)
     df_ar["Average Reward"] = (
@@ -33,10 +28,21 @@ def reward_plotter(bandits, run_config, plot=True):
             + p9.geom_line()
             + p9.theme(figure_size=(20, 9))
         )
-        bar_percent.append(bar_increment)
-        bar.progress(sum(bar_percent))
-        st.pyplot(p9.ggplot.draw(p))
-    bar.empty()
+        fig = p.draw()
+        fig.show()
+
+        # p2 = (
+        #     p9.ggplot(
+        #         df_mean, p9.aes(x="Step", y="% Optimal Action", color="factor(epsilon)")
+        #     )
+        #     + p9.ggtitle(
+        #         f"Average % Optimal Action taken across steps (n) for {run_config['n_runs']} runs over different epsilons, {b.Q_init.__name__}"
+        #     )
+        #     + p9.geom_line()
+        #     + p9.theme(figure_size=(20, 9))
+        # )
+        # fig = p2.draw()
+        # fig.show()
 
     return df_ar
 
@@ -51,11 +57,14 @@ def steps_plotter(bandits, run_config, testbed):
                 y="Reward",
             )
         )
-        + p9.ggtitle(f"Action - Rewards across {run_config['steps']} steps for different epsilons")
+        + p9.ggtitle(
+            f"Action - Rewards across {run_config['steps']} steps for different epsilons"
+        )
         + p9.xlab("k-arm")
         + p9.ylab("Reward")
         + p9.geom_violin(df_estimate, fill="#d0d3d4")
         + p9.geom_jitter(df_ar, p9.aes(color="factor(epsilon)"))
         + p9.theme(figure_size=(20, 9))
     )
-    st.pyplot(p9.ggplot.draw(p))
+    fig = p.draw()
+    fig.show()
