@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 N = 2000
-RUNS = 1000
+RUNS = 10
 EPSILONS = [0, 0.01, 0.1]
 EXPECTED_VALUES = {
     1: {"mean": 0.5, "var": 1},

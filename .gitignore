@@ -110,3 +110,6 @@ ENV/
 *.swo
 *.swp
 *.swn
+
+#hydra
+.hydra/
