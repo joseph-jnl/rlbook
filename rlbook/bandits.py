@@ -7,6 +7,7 @@ from typing import Callable, Type
 from rlbook.testbeds import Testbed
 import warnings
 from collections import namedtuple
+import logging
 
 
 def init_zero(testbed):
@@ -161,7 +162,7 @@ class EpsilonGreedy(Bandit):
         epsilon (float):
             epsilon coefficient configuring the probability to explore non-optimal actions,
             ranging from 0.0 to 1.0
-        alpha (float):
+        alpha (float or "1/n"):
             Constant step size ranging from 0.0 to 1.0, resulting in Q being the weighted average
             of past rewards and initial estimate of Q
 
@@ -185,11 +186,12 @@ class EpsilonGreedy(Bandit):
         A_best = np.argmax([ev["mean"] for ev in self.testbed.expected_values.values()])
         R = self.testbed.action_value(self.At)
         self.nQ[self.At] += 1
-        if self.alpha is None:
+        if self.alpha == "1/n":
             self.Q[self.At] = self.Q[self.At] + 1 / self.nQ[self.At] * (
                 R - self.Q[self.At]
             )
         else:
+            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.uR = self.uR + (R - self.uR) / self.n
