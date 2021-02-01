@@ -195,6 +195,7 @@ class EpsilonGreedy(Bandit):
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.uR = self.uR + (R - self.uR) / self.n
+        self.n += 1
 
         return (self.At, R, self.uR, A_best)
 
