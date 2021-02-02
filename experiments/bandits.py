@@ -11,15 +11,14 @@ import logging
 from typing import Dict
 
 
-def log_scalars(bandits: Dict[str, Bandit], column):
+def log_scalars(df, plot: str, column: str, series_name: str):
     task = Task.init(project_name="rlbook", task_name="bandit")
     logger = task.get_logger()
-    df_ar = pd.concat([b.output_df() for b in bandits.values()]).reset_index(drop=True)
-    df_ar.apply(
+    df.apply(
         lambda x: logger.report_scalar(
-            title="Bandit test",
-            series="Average Reward",
-            value=x.average_reward,
+            title=plot,
+            series=series_name,
+            value=x[column],
             iteration=x.step,
         ),
         axis=1,
@@ -39,7 +38,27 @@ def main(cfg: DictConfig):
     for b in bandits.values():
         b.run(**OmegaConf.to_container(cfg.run))
     if cfg.upload:
-        log_scalars(bandits, "average_reward")
+        df_ar = (
+            pd.concat([b.output_df() for b in bandits.values()])
+            .reset_index(drop=True)
+            .groupby(["step", "epsilon"])
+            .mean("average_reward")
+            .reset_index()
+        )
+        shapes = [
+            "\u25A0",
+            "\u25B2",
+            "\u25CF",
+            "\u25A7",
+            "\u25BC",
+        ]
+        for i, e in enumerate(bandits.keys()):
+            log_scalars(
+                df_ar.loc[df_ar["epsilon"] == e],
+                "Average Reward",
+                "average_reward",
+                f"{shapes[i]} epsilon: {e}",
+            )
 
 
 if __name__ == "__main__":
