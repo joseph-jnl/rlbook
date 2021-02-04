@@ -6,10 +6,10 @@ normal_testbed:
       mean: 0.5
       var: 1
     "2":
-      mean: 0.5
+      mean: 3.5
       var: 1
     "3":
-      mean: 0.5
+      mean: 2.5
       var: 1
     "4":
       mean: 0.5
@@ -21,16 +21,16 @@ normal_testbed:
       mean: 0.5
       var: 1
     "7":
-      mean: 0.5
+      mean: 1.5
       var: 1
     "8":
-      mean: 0.5
+      mean: 1.5
       var: 1
     "9":
-      mean: 0.5
+      mean: 0.1
       var: 1
     "10":
-      mean: 0.5
+      mean: 0.2
       var: 1
   p_drift: 0
 
@@ -38,9 +38,11 @@ normal_testbed:
 bandit:
   alpha: 1/n
   epsilons: [0, 0.01, 0.1]
+  Q_init: init_optimistic
+
 run:
   steps: 100
-  n_runs: 3
+  n_runs: 10
   n_jobs: 8
 
 # Experiment config
