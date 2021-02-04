@@ -183,7 +183,9 @@ class EpsilonGreedy(Bandit):
             self.At = np.random.choice(list(self.Q.keys()))
         else:
             self.At = self.argmax(self.Q)
-        A_best = np.argmax([ev["mean"] for ev in self.testbed.expected_values.values()])
+        A_best = list(self.testbed.expected_values.keys())[
+            np.argmax([ev["mean"] for ev in self.testbed.expected_values.values()])
+        ]
         R = self.testbed.action_value(self.At)
         self.nQ[self.At] += 1
         if self.alpha == "1/n":
