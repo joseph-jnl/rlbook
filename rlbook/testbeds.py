@@ -20,11 +20,11 @@ class Testbed(metaclass=ABCMeta):
         """Provide an estimate of the testbed values across all arms
         n (int): Number of iterations to execute in testbed
         """
-        R = pd.DataFrame(columns=["Reward", "Action", "Strategy"])
+        R = pd.DataFrame(columns=["reward", "action", "strategy"])
         for a in self.expected_values:
-            Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["Reward"])
-            Ra["Action"] = a
-            Ra["Strategy"] = "uniform"
+            Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
+            Ra["action"] = float(a)
+            Ra["strategy"] = "uniform"
             R = pd.concat([R, Ra])
         return R
 
