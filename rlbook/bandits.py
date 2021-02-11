@@ -3,11 +3,12 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import Callable, Type
+from typing import Callable, Type, Dict
 from rlbook.testbeds import Testbed
 import warnings
 from collections import namedtuple
 import logging
+from itertools import repeat
 
 
 def init_zero(testbed):
@@ -50,8 +51,7 @@ class Bandit(metaclass=ABCMeta):
             Running average reward of the action values selected
     """
 
-    def __init__(self, testbed: Type[Testbed], Q_init: Callable = init_zero):
-        self.testbed = testbed
+    def __init__(self, Q_init: Dict):
         self.columns = [
             "run",
             "step",
@@ -63,16 +63,16 @@ class Bandit(metaclass=ABCMeta):
         self.action_values = None
         self.n = 1
         self.Q_init = Q_init
-        self.Q = self.Q_init(self.testbed)
+        self.Q = Q_init
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
         self.uR = 0
 
-    def initialization(self):
+    def initialization(self, testbed):
         """Initialize bandit for a new run"""
-        self.testbed.reset_ev()
+        testbed.reset_ev()
         self.n = 1
-        self.Q = self.Q_init(self.testbed)
+        self.Q = self.Q_init
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
         self.uR = 0
@@ -90,39 +90,39 @@ class Bandit(metaclass=ABCMeta):
         return list(Q.keys())[At]
 
     @abstractmethod
-    def select_action(self):
+    def select_action(self, testbed):
         """Select action logic"""
         pass
 
-    def run(self, steps, n_runs=1, n_jobs=4, serial=False):
+    def run(self, testbed, steps, n_runs=1, n_jobs=4, serial=False):
         """Run bandit for specified number of steps and optionally multiple runs"""
 
         if serial:
-            self.action_values = self._serialrun(steps, n_runs)
+            self.action_values = self._serialrun(testbed, steps, n_runs)
         elif n_runs >= 4:
             if n_jobs > cpu_count():
                 warnings.warn(
                     f"Warning: running n_jobs: {n_jobs}, with only {cpu_count()} cpu's detected",
                     RuntimeWarning,
                 )
-            self.action_values = self._multirun(steps, n_runs, n_jobs=n_jobs)
+            self.action_values = self._multirun(testbed, steps, n_runs, n_jobs=n_jobs)
         else:
-            self.action_values = self._serialrun(steps, n_runs)
+            self.action_values = self._serialrun(testbed, steps, n_runs)
 
-    def _serialrun(self, steps, n_runs):
+    def _serialrun(self, testbed, steps, n_runs):
         action_values = np.empty((steps, 6, n_runs))
         for k in range(n_runs):
             action_values[:, 0, k] = k
             for n in range(steps):
                 action_values[n, 1, k] = n
-                action_values[n, 2:, k] = self.select_action()
+                action_values[n, 2:, k] = self.select_action(testbed)
 
             # Reset Q for next run
-            self.initialization()
+            self.initialization(testbed)
 
         return action_values
 
-    def _singlerun(self, steps, idx_run):
+    def _singlerun(self, testbed, steps, idx_run):
         # Generate different random states for parallel workers
         np.random.seed()
 
@@ -130,17 +130,20 @@ class Bandit(metaclass=ABCMeta):
         action_values[:, 0, 0] = idx_run
         for n in range(steps):
             action_values[n, 1, 0] = n
-            action_values[n, 2:, 0] = self.select_action()
+            action_values[n, 2:, 0] = self.select_action(testbed)
 
         # Reset Q for next run
-        self.initialization()
+        self.initialization(testbed)
 
         return action_values
 
-    def _multirun(self, steps, n_runs, n_jobs=4):
+    def _multirun(self, testbed, steps, n_runs, n_jobs=4):
         with ProcessPoolExecutor(max_workers=n_jobs) as executor:
             action_values = executor.map(
-                self._singlerun, [steps for n in range(n_runs)], list(range(n_runs))
+                self._singlerun,
+                repeat(testbed, n_runs),
+                [steps for n in range(n_runs)],
+                list(range(n_runs)),
             )
         return np.squeeze(np.stack(list(action_values), axis=2))
 
@@ -173,20 +176,20 @@ class EpsilonGreedy(Bandit):
             Named tuple containing outputs when select action method is called.
     """
 
-    def __init__(self, testbed, Q_init: Callable = init_zero, epsilon=0.1, alpha=0.1):
-        super().__init__(testbed, Q_init)
+    def __init__(self, Q_init: Dict, epsilon=0.1, alpha=0.1):
+        super().__init__(Q_init)
         self.epsilon = epsilon
         self.alpha = alpha
 
-    def select_action(self):
+    def select_action(self, testbed):
         if np.random.binomial(1, self.epsilon) == 1:
             self.At = np.random.choice(list(self.Q.keys()))
         else:
             self.At = self.argmax(self.Q)
-        A_best = list(self.testbed.expected_values.keys())[
-            np.argmax([ev["mean"] for ev in self.testbed.expected_values.values()])
+        A_best = list(testbed.expected_values.keys())[
+            np.argmax([ev["mean"] for ev in testbed.expected_values.values()])
         ]
-        R = self.testbed.action_value(self.At)
+        R = testbed.action_value(self.At)
         self.nQ[self.At] += 1
         if self.alpha == "1/n":
             self.Q[self.At] = self.Q[self.At] + 1 / self.nQ[self.At] * (
