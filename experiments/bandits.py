@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 from rlbook.bandits import EpsilonGreedy, init_optimistic, Bandit, init_zero
 from rlbook.testbeds import NormalTestbed
-from experiments.plotters import steps_plotter, reward_plotter
-import plotnine as p9
+from experiments.plotters import steps_violin_plotter
 from clearml import Task
 import hydra
 from hydra.utils import instantiate, call
@@ -21,9 +20,9 @@ COLORS = [
     "\u2006",
     "\u2008",
 ]
-
+local_logger = logging.getLogger("experiment")
 INIT = {"init_optimistic": init_optimistic, "init_zero": init_zero}
-
+BANDIT = {"EpsilonGreedy": EpsilonGreedy}
 
 def average_runs(df, group=[]):
     """Average all dataframe columns across runs
@@ -56,9 +55,8 @@ def optimal_action(df, group=[]):
     return df
 
 
-def log_scalars(df, plot: str, column: str, series_name: str):
-    task = Task.init(project_name="rlbook", task_name="bandit")
-    logger = task.get_logger()
+def log_scalars(df, logger, plot: str, column: str, series_name: str):
+    df = average_runs(df)
     df.apply(
         lambda x: logger.report_scalar(
             title=plot,
@@ -70,109 +68,63 @@ def log_scalars(df, plot: str, column: str, series_name: str):
     )
 
 
-@hydra.main(config_path="configs/bandits", config_name="test")
+@hydra.main(config_path="configs/bandits", config_name="defaults")
 def main(cfg: DictConfig):
 
-    testbed = instantiate(cfg.normal_testbed)
-    logging.debug(f"Testbed expected values: {testbed.expected_values}")
-    bandits = {
-        e: EpsilonGreedy(
-            testbed,
-            epsilon=e,
-            alpha=cfg.bandit["alpha"],
-            Q_init=INIT[cfg.bandit["Q_init"]],
-        )
-        for e in cfg.bandit["epsilons"]
-    }
+    testbed = instantiate(cfg.testbed)
+    bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed))
+    local_logger.info(f"Running bandit: {cfg.run}")
+    local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
+    local_logger.debug(f"bandit config: {cfg['bandit']}")
+    local_logger.debug(f"run config: {cfg['run']}")
+    bandit.run(testbed, **OmegaConf.to_container(cfg.run))
 
-    for b in bandits.values():
-        b.run(**OmegaConf.to_container(cfg.run))
-
-    logging.debug(f"{b.Q_init}")
-    df_ar = pd.concat([b.output_df() for b in bandits.values()]).reset_index(
-        drop=True
-    )
-    df_ar = optimal_action(df_ar, group=["epsilon"])
-    df_ar = average_runs(df_ar, group=["epsilon"])
-    logging.debug(f"{df_ar}")
+    df_ar = bandit.output_df()
+    df_ar = optimal_action(df_ar)
+    local_logger.debug(f"{df_ar[['run', 'step', 'action', 'reward']].head(15)}")
 
     if cfg.upload:
-        for i, e in enumerate(bandits.keys()):
-            log_scalars(
-                df_ar.loc[df_ar["epsilon"] == e],
-                "Average Reward",
-                "average_reward",
-                f"{COLORS[i]}epsilon: {e}",
+        local_logger.info(f"Uploading to clearml")
+        task_name = f"{cfg['task']} - {cfg.bandit['Q_init']}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.normal_testbed['p_drift']}"
+        task = Task.init(project_name=cfg["project"], task_name=task_name)
+        task.add_tags(
+            [
+                f"{cfg.bandit['type']}",
+                f"{cfg.bandit['Q_init']}",
+                f"alpha: {cfg.bandit['alpha']}",
+                f"p_drift: {cfg.normal_testbed['p_drift']}",
+            ]
+        )
+        remote_logger = task.get_logger()
+
+        for i in range(5):
+            fig = steps_violin_plotter(df_ar, testbed, run=i)
+            remote_logger.report_matplotlib_figure(
+                figure=fig,
+                title="Action Rewards across a single run",
+                series="single_run",
+                iteration=i,
+                report_image=True,
             )
-            log_scalars(
-                df_ar.loc[df_ar["epsilon"] == e],
-                "% Optimal Action",
-                "optimal_action_percent",
-                f"{COLORS[i]}epsilon: {e}",
-            )
+
+        log_scalars(
+            df_ar,
+            remote_logger,
+            "Average Reward",
+            "average_reward",
+            "average_reward",
+        )
+        log_scalars(
+            df_ar,
+            remote_logger,
+            "% Optimal Action",
+            "optimal_action_percent",
+            "optimal_action_percent",
+        )
+        task.close()
 
 
 if __name__ == "__main__":
     main()
 
 
-EXPERIMENTS = {
-    # "Single Run": {
-    #     f"Single Run - Epsilon greedy bandit - 0 init": {
-    #         "fx": steps_plotter,
-    #         "config": (
-    #             {e: EpsilonGreedy(testbed, epsilon=e, print_scalars=True) for e in EPSILONS},
-    #             {"steps": N, "n_runs": 1, "n_jobs": 1},
-    #             testbed,
-    #         ),
-    #     },
-    # },
-    # "0 initialization": {
-    #     f"{RUNS} Runs - Epsilon greedy bandit - 0 init - varying 1/N step size alpha": {
-    #         "fx": reward_plotter,
-    #         "config": (
-    #             {e: EpsilonGreedy(testbed, epsilon=e, alpha=None, print_scalars=True) for e in EPSILONS},
-    #             {"steps": N, "n_runs": RUNS, "n_jobs": 8,
-    #             },
-    #         ),
-    #     },
-    # f"{RUNS} Runs - Epsilon greedy bandit - 0 init - constant step size": {
-    #     "fx": reward_plotter,
-    #     "config": (
-    #         {e: EpsilonGreedy(testbed, epsilon=e, print_scalars=True) for e in EPSILONS},
-    #         {"steps": N, "n_runs": RUNS, "n_jobs": 8},
-    #     ),
-    # },
-    # f"{RUNS} Runs - Drifting Testbed - Epsilon greedy bandit - 0 init - constant step size": {
-    #     "fx": reward_plotter,
-    #     "config": (
-    #         {e: EpsilonGreedy(testbed_drift, epsilon=e, print_scalars=True) for e in EPSILONS},
-    #         {"steps": N, "n_runs": RUNS, "n_jobs": 8},
-    #     ),
-    # },
-    # },
-    # "optimistic initialization": {
-    #     f"{RUNS} Runs - Epsilon greedy bandit - optimistic init - varying 1/N step size alpha": {
-    #         "fx": reward_plotter,
-    #         "config": (
-    #             {e: EpsilonGreedy(testbed, epsilon=e, alpha=None, Q_init=init_optimistic) for e in EPSILONS},
-    #             {"steps": N, "n_runs": RUNS, "n_jobs": 8,
-    #             },
-    #         ),
-    #     },
-    #     f"{RUNS} Runs - Epsilon greedy bandit - optimistic init - constant step size": {
-    #         "fx": reward_plotter,
-    #         "config": (
-    #             {e: EpsilonGreedy(testbed, epsilon=e, Q_init=init_optimistic) for e in EPSILONS},
-    #             {"steps": N, "n_runs": RUNS, "n_jobs": 8},
-    #         ),
-    #     },
-    #     f"{RUNS} Runs - Drifting Testbed - Epsilon greedy bandit - optimistic init - constant step size": {
-    #         "fx": reward_plotter,
-    #         "config": (
-    #             {e: EpsilonGreedy(testbed_drift, epsilon=e, Q_init=init_optimistic) for e in EPSILONS},
-    #             {"steps": N, "n_runs": RUNS, "n_jobs": 8},
-    #         ),
-    #     },
-    # },
-}

@@ -1,5 +1,4 @@
-# Testbed config
-normal_testbed:
+testbed:
   _target_: rlbook.testbeds.NormalTestbed 
   expected_values:
     "1": 
@@ -34,15 +33,17 @@ normal_testbed:
       var: 1
   p_drift: 0
 
-# Bandit config
 bandit:
+  _target_: rlbook.bandits.EpsilonGreedy
   alpha: 1/n
-  epsilons: [0, 0.01, 0.1]
-  Q_init: init_optimistic
+  epsilon: 0.0
+
+Q_init: 
+  _target_: rlbook.bandits.init_zero
 
 run:
-  steps: 100
-  n_runs: 10
+  steps: 5
+  n_runs: 3
   n_jobs: 8
 
 # Experiment config
@@ -50,4 +51,7 @@ plotters:
   - "a"
   - "b"
 
+# clearml
 upload: False
+project: rlbook
+task: bandit
