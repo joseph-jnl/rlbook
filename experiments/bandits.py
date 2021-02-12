@@ -84,15 +84,18 @@ def main(cfg: DictConfig):
     local_logger.debug(f"{df_ar[['run', 'step', 'action', 'reward']].head(15)}")
 
     if cfg.upload:
+        bandit_type = cfg.bandit._target_.split('.')[-1]
+        Q_init = cfg.Q_init._target_.split('.')[-1]
         local_logger.info(f"Uploading to clearml")
-        task_name = f"{cfg['task']} - {cfg.bandit['Q_init']}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.normal_testbed['p_drift']}"
-        task = Task.init(project_name=cfg["project"], task_name=task_name)
+        task_name = f"{cfg['task']} - {bandit_type}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.testbed['p_drift']}"
+        local_logger.debug(f"{cfg['project']}: {task_name}")
+        task = Task.init(project_name=cfg["project"], task_name=task_name, auto_connect_arg_parser=False)
         task.add_tags(
             [
-                f"{cfg.bandit['type']}",
-                f"{cfg.bandit['Q_init']}",
+                f"{bandit_type}",
+                f"{Q_init}",
                 f"alpha: {cfg.bandit['alpha']}",
-                f"p_drift: {cfg.normal_testbed['p_drift']}",
+                f"p_drift: {cfg.testbed['p_drift']}",
             ]
         )
         remote_logger = task.get_logger()
