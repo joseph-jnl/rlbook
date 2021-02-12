@@ -4,7 +4,7 @@ import plotnine as p9
 
 def steps_violin_plotter(df_ar, testbed, run=0):
     df_estimate = testbed.estimate_distribution(1000)
-    df_ar = df_ar.loc[df_ar["run"]==run]
+    df_ar = df_ar.loc[df_ar["run"]==run].astype({"action": "int32"})
     p = (
         p9.ggplot(
             p9.aes(
