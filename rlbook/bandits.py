@@ -183,7 +183,7 @@ class EpsilonGreedy(Bandit):
 
     def select_action(self, testbed):
         if np.random.binomial(1, self.epsilon) == 1:
-            self.At = np.random.choice(list(self.Q.keys()))
+            self.At = list(self.Q.keys())[np.random.randint(len(self.Q))]
         else:
             self.At = self.argmax(self.Q)
         A_best = list(testbed.expected_values.keys())[
