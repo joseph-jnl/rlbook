@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from typing import Callable, Type, Dict
-from copy import copy
+from copy import deepcopy
 
 
 class Testbed(metaclass=ABCMeta):
@@ -15,7 +15,7 @@ class Testbed(metaclass=ABCMeta):
 
     def __init__(self, expected_values):
         self.initial_ev = expected_values
-        self.expected_values = self.initial_ev.copy()
+        self.expected_values = self.initial_ev.deepcopy()
 
     def estimate_distribution(self, n=1000) -> pd.DataFrame:
         """Provide an estimate of the testbed values across all arms
@@ -31,7 +31,7 @@ class Testbed(metaclass=ABCMeta):
         return R
 
     def reset_ev(self):
-        self.expected_values = self.initial_ev.copy()
+        self.expected_values = self.initial_ev.deepcopy()
 
     @abstractmethod
     def action_value(self, action, shape=None) -> np.ndarray or float:

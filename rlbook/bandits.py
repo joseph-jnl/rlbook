@@ -9,6 +9,7 @@ import warnings
 from collections import namedtuple
 import logging
 from itertools import repeat
+from copy import deepcopy
 
 
 def init_zero(testbed):
@@ -63,7 +64,7 @@ class Bandit(metaclass=ABCMeta):
         self.action_values = None
         self.n = 1
         self.Q_init = Q_init
-        self.Q = Q_init
+        self.Q = Q_init.deepcopy()
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
         self.uR = 0
@@ -72,7 +73,7 @@ class Bandit(metaclass=ABCMeta):
         """Initialize bandit for a new run"""
         testbed.reset_ev()
         self.n = 1
-        self.Q = self.Q_init
+        self.Q = self.Q_init.deepcopy()
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
         self.uR = 0
