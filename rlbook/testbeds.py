@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Type
+from typing import Callable, Type, Dict
+from copy import copy
 
 
 class Testbed(metaclass=ABCMeta):
@@ -13,24 +14,24 @@ class Testbed(metaclass=ABCMeta):
     """
 
     def __init__(self, expected_values):
-        self.expected_values = expected_values
         self.initial_ev = expected_values
+        self.expected_values = self.initial_ev.copy()
 
     def estimate_distribution(self, n=1000) -> pd.DataFrame:
         """Provide an estimate of the testbed values across all arms
         n (int): Number of iterations to execute in testbed
         """
-        self.p_drift = 0
+        self.p_drift = 0.0
         R = pd.DataFrame(columns=["reward", "action", "strategy"])
         for a in self.expected_values:
             Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
-            Ra["action"] = int(a)
+            Ra["action"] = a
             Ra["strategy"] = "uniform"
             R = pd.concat([R, Ra])
         return R
 
     def reset_ev(self):
-        self.expected_values = self.initial_ev
+        self.expected_values = self.initial_ev.copy()
 
     @abstractmethod
     def action_value(self, action, shape=None) -> np.ndarray or float:
@@ -52,7 +53,7 @@ class NormalTestbed(Testbed):
             Magnitude of reward change when drifting, defaults to 1.0
     """
 
-    def __init__(self, expected_values, p_drift=0.0, drift_mag=1.0):
+    def __init__(self, expected_values: Dict, p_drift=0.0, drift_mag=1.0):
         self.p_drift = p_drift
         self.drift_mag = drift_mag
         super().__init__(expected_values)
@@ -60,7 +61,7 @@ class NormalTestbed(Testbed):
     def action_value(self, action, shape=None) -> np.ndarray or float:
         """Return reward value given action"""
         if np.random.binomial(1, self.p_drift) == 1:
-            A_drift = np.random.choice(list(self.expected_values.keys()))
+            A_drift = list(self.expected_values.keys())[np.random.randint(len(self.expected_values))]
             self.expected_values[A_drift]["mean"] = self.expected_values[A_drift][
                 "mean"
             ] + self.drift_mag * (np.random.random() - 0.5)
