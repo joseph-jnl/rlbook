@@ -2,13 +2,6 @@
 rlbook
 ======
 
-
-.. image:: https://img.shields.io/pypi/v/rlbook.svg
-        :target: https://pypi.python.org/pypi/rlbook
-
-.. image:: https://img.shields.io/travis/joseph-jnl/rlbook.svg
-        :target: https://travis-ci.com/joseph-jnl/rlbook
-
 .. image:: https://readthedocs.org/projects/rlbook/badge/?version=latest
         :target: https://rlbook.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
