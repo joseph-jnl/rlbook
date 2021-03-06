@@ -9,20 +9,36 @@ from hydra.utils import instantiate, call
 from omegaconf import DictConfig, OmegaConf
 import logging
 from typing import Dict
+import plotnine as p9
+from tensorboardX import SummaryWriter
 
 
-# clearml frontend currently has a bug that truncates "." and treats
-# certain series as identical. Hack: prefix invisible unicode characters to differentiate
-COLORS = [
-    "\u2000",
-    "\u2002",
-    "\u2004",
-    "\u2006",
-    "\u2008",
-]
 local_logger = logging.getLogger("experiment")
-INIT = {"init_optimistic": init_optimistic, "init_zero": init_zero}
-BANDIT = {"EpsilonGreedy": EpsilonGreedy}
+
+
+def steps_violin_plotter(df_ar, testbed, run=0):
+    df_estimate = testbed.estimate_distribution(1000)
+    df_estimate = df_estimate.astype({"action": "int32"})
+    df_ar = df_ar.loc[df_ar["run"] == run]
+    df_ar = df_ar.astype({"action": "int32"})
+    p = (
+        p9.ggplot(
+            p9.aes(
+                x="factor(action)",
+                y="reward",
+            )
+        )
+        + p9.ggtitle(f"Action - Rewards across {df_ar.shape[0]} steps")
+        + p9.xlab("k-arm")
+        + p9.ylab("Reward")
+        + p9.geom_violin(df_estimate, fill="#d0d3d4")
+        + p9.geom_jitter(df_ar, p9.aes(color="step"))
+        + p9.theme(figure_size=(20, 9))
+    )
+    fig = p.draw()
+
+    return fig
+
 
 def average_runs(df, group=[]):
     """Average all dataframe columns across runs
@@ -55,7 +71,9 @@ def optimal_action(df, group=[]):
     return df
 
 
-def log_scalars(df, logger, plot: str, column: str, series_name: str):
+def upload_scalars(df, logger, plot: str, column: str, series_name: str, **kwargs):
+    """Upload scalars to clearml
+    """
     df = average_runs(df)
     df.apply(
         lambda x: logger.report_scalar(
@@ -63,6 +81,20 @@ def log_scalars(df, logger, plot: str, column: str, series_name: str):
             series=series_name,
             value=x[column],
             iteration=x.step,
+        ),
+        axis=1,
+    )
+
+
+def write_scalars(df, writer, column: str, tag: str):
+    """Write scalars to local using tensorboardX
+    """
+    df = average_runs(df)
+    df.apply(
+        lambda x: writer.add_scalar(
+            tag,
+            x[column],
+            x.step,
         ),
         axis=1,
     )
@@ -84,12 +116,17 @@ def main(cfg: DictConfig):
     local_logger.debug(f"{df_ar[['run', 'step', 'action', 'reward']].head(15)}")
 
     if cfg.upload:
-        bandit_type = cfg.bandit._target_.split('.')[-1]
-        Q_init = cfg.Q_init._target_.split('.')[-1]
+        bandit_type = cfg.bandit._target_.split(".")[-1]
+        Q_init = cfg.Q_init._target_.split(".")[-1]
+
         local_logger.info(f"Uploading to clearml")
-        task_name = f"{cfg['task']} - {bandit_type}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.testbed['p_drift']}"
+        task_name = f"{cfg['task']} - {bandit_type}, {Q_init}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.testbed['p_drift']}"
         local_logger.debug(f"{cfg['project']}: {task_name}")
-        task = Task.init(project_name=cfg["project"], task_name=task_name, auto_connect_arg_parser=False)
+        task = Task.init(
+            project_name=cfg["project"],
+            task_name=task_name,
+            auto_connect_arg_parser=False,
+        )
         task.add_tags(
             [
                 f"{bandit_type}",
@@ -99,6 +136,13 @@ def main(cfg: DictConfig):
             ]
         )
         remote_logger = task.get_logger()
+        config = task.connect_configuration(
+            OmegaConf.to_container(cfg.testbed), name="testbed parameters"
+        )
+        writer = SummaryWriter(comment="bandit")
+        parameters = task.connect(OmegaConf.to_container(cfg.bandit))
+        parameters["Q_init"] = cfg.Q_init._target_
+
 
         for i in range(5):
             fig = steps_violin_plotter(df_ar, testbed, run=i)
@@ -110,24 +154,36 @@ def main(cfg: DictConfig):
                 report_image=True,
             )
 
-        log_scalars(
+        # upload_scalars(
+        #     df_ar,
+        #     remote_logger,
+        #     "Average Reward",
+        #     "reward",
+        #     "reward",
+        # )
+        # upload_scalars(
+        #     df_ar,
+        #     remote_logger,
+        #     "% Optimal Action",
+        #     "optimal_action_percent",
+        #     "optimal_action_percent",
+        # )
+
+        write_scalars(
             df_ar,
-            remote_logger,
-            "Average Reward",
-            "average_reward",
+            writer,
+            "reward",
             "average_reward",
         )
-        log_scalars(
+        write_scalars(
             df_ar,
-            remote_logger,
-            "% Optimal Action",
+            writer,
             "optimal_action_percent",
             "optimal_action_percent",
         )
+
         task.close()
 
 
 if __name__ == "__main__":
     main()
-
-
