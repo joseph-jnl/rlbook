@@ -72,8 +72,7 @@ def optimal_action(df, group=[]):
 
 
 def upload_scalars(df, logger, plot: str, column: str, series_name: str, **kwargs):
-    """Upload scalars to clearml
-    """
+    """Upload scalars to clearml"""
     df = average_runs(df)
     df.apply(
         lambda x: logger.report_scalar(
@@ -87,8 +86,7 @@ def upload_scalars(df, logger, plot: str, column: str, series_name: str, **kwarg
 
 
 def write_scalars(df, writer, column: str, tag: str):
-    """Write scalars to local using tensorboardX
-    """
+    """Write scalars to local using tensorboardX"""
     df = average_runs(df)
     df.apply(
         lambda x: writer.add_scalar(
@@ -120,21 +118,29 @@ def main(cfg: DictConfig):
         Q_init = cfg.Q_init._target_.split(".")[-1]
 
         local_logger.info(f"Uploading to clearml")
-        task_name = f"{cfg['task']} - {bandit_type}, {Q_init}, alpha: {cfg.bandit['alpha']}, e: {cfg.bandit['epsilon']} | testbed - p_drift: {cfg.testbed['p_drift']}"
+        task_name = f"{bandit_type} - " + ", ".join(
+            [
+                f"{k}: {OmegaConf.select(cfg, v).split('.')[-1]}"
+                if isinstance(OmegaConf.select(cfg, v), str)
+                else f"{k}: {OmegaConf.select(cfg, v)}"
+                for k, v in cfg.task_labels.items()
+            ]
+        )
         local_logger.debug(f"{cfg['project']}: {task_name}")
         task = Task.init(
             project_name=cfg["project"],
             task_name=task_name,
             auto_connect_arg_parser=False,
         )
-        task.add_tags(
-            [
-                f"{bandit_type}",
-                f"{Q_init}",
-                f"alpha: {cfg.bandit['alpha']}",
-                f"p_drift: {cfg.testbed['p_drift']}",
-            ]
-        )
+
+        tags = [f"{bandit_type}"] + [
+            f"{k}: {OmegaConf.select(cfg, v).split('.')[-1]}"
+            if isinstance(OmegaConf.select(cfg, v), str)
+            else f"{k}: {OmegaConf.select(cfg, v)}"
+            for k, v in cfg.tags.items()
+        ]
+        task.add_tags(tags)
+
         remote_logger = task.get_logger()
         config = task.connect_configuration(
             OmegaConf.to_container(cfg.testbed), name="testbed parameters"
@@ -142,7 +148,6 @@ def main(cfg: DictConfig):
         writer = SummaryWriter(comment="bandit")
         parameters = task.connect(OmegaConf.to_container(cfg.bandit))
         parameters["Q_init"] = cfg.Q_init._target_
-
 
         for i in range(5):
             fig = steps_violin_plotter(df_ar, testbed, run=i)

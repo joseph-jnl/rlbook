@@ -50,3 +50,12 @@ run:
 upload: False
 project: rlbook
 task: bandit
+task_labels:
+  Q_init: Q_init._target_
+  p_drift: testbed.p_drift
+  e: bandit.epsilon
+  alpha: bandit.alpha
+
+tags: 
+  Q_init: Q_init._target_
+  p_drift: testbed.p_drift
