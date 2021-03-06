@@ -48,8 +48,6 @@ class Bandit(metaclass=ABCMeta):
             Count of how many times an action has been chosen
         At (int):
             Action that corresponds to the index of the selected testbed arm
-        uR (float):
-            Running average reward of the action values selected
     """
 
     def __init__(self, Q_init: Dict):
@@ -58,7 +56,6 @@ class Bandit(metaclass=ABCMeta):
             "step",
             "action",
             "reward",
-            "average_reward",
             "optimal_action",
         ]
         self.action_values = None
@@ -67,7 +64,6 @@ class Bandit(metaclass=ABCMeta):
         self.Q = deepcopy(Q_init)
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
-        self.uR = 0
 
     def initialization(self, testbed):
         """Initialize bandit for a new run"""
@@ -76,7 +72,6 @@ class Bandit(metaclass=ABCMeta):
         self.Q = deepcopy(self.Q_init)
         self.nQ = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
-        self.uR = 0
 
     def argmax(self, Q):
         """Return max estimate Q, if tie between actions, choose at random between tied actions"""
@@ -111,7 +106,7 @@ class Bandit(metaclass=ABCMeta):
             self.action_values = self._serialrun(testbed, steps, n_runs)
 
     def _serialrun(self, testbed, steps, n_runs):
-        action_values = np.empty((steps, 6, n_runs))
+        action_values = np.empty((steps, len(self.columns), n_runs))
         for k in range(n_runs):
             action_values[:, 0, k] = k
             for n in range(steps):
@@ -127,7 +122,7 @@ class Bandit(metaclass=ABCMeta):
         # Generate different random states for parallel workers
         np.random.seed()
 
-        action_values = np.empty((steps, 6, 1))
+        action_values = np.empty((steps, len(self.columns), 1))
         action_values[:, 0, 0] = idx_run
         for n in range(steps):
             action_values[n, 1, 0] = n
@@ -200,10 +195,9 @@ class EpsilonGreedy(Bandit):
             logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
-        self.uR = self.uR + (R - self.uR) / self.n
         self.n += 1
 
-        return (self.At, R, self.uR, A_best)
+        return (self.At, R, A_best)
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
