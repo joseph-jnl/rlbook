@@ -161,11 +161,11 @@ class EpsilonGreedy(Bandit):
         epsilon (float):
             epsilon coefficient configuring the probability to explore non-optimal actions,
             ranging from 0.0 to 1.0
-        alpha (float or "1/n"):
+        alpha (float or "sample_average"):
             Constant step size ranging from 0.0 to 1.0, resulting in Q being the weighted average
             of past rewards and initial estimate of Q
 
-            Note on varying step sizes such as using 1/n:
+            Note on varying step sizes such as using 1/n "sample_average":
                 self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
         Output (namedtuple):
@@ -187,7 +187,7 @@ class EpsilonGreedy(Bandit):
         ]
         R = testbed.action_value(self.At)
         self.nQ[self.At] += 1
-        if self.alpha == "1/n":
+        if self.alpha == "sample_average":
             self.Q[self.At] = self.Q[self.At] + 1 / self.nQ[self.At] * (
                 R - self.Q[self.At]
             )

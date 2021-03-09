@@ -35,7 +35,7 @@ testbed:
 
 bandit:
   _target_: rlbook.bandits.EpsilonGreedy
-  alpha: 1/n
+  alpha: sample_average
   epsilon: 0
 
 Q_init: 
@@ -59,3 +59,10 @@ task_labels:
 tags: 
   Q_init: Q_init._target_
   p_drift: testbed.p_drift
+
+hydra:
+  run:
+    dir: ./outputs/${hydra.job.override_dirname}
+  sweep:
+    dir: ./outputs/${hydra.job.override_dirname}
+    subdir: e=${bandit.epsilon},alpha=${bandit.alpha},Q_init=${Q_init._target_},p_drift=${testbed.p_drift}
