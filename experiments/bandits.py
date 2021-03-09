@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from rlbook.bandits import EpsilonGreedy, init_optimistic, Bandit, init_zero
 from rlbook.testbeds import NormalTestbed
-from experiments.plotters import steps_violin_plotter
 from clearml import Task
 import hydra
 from hydra.utils import instantiate, call
@@ -145,7 +144,8 @@ def main(cfg: DictConfig):
         config = task.connect_configuration(
             OmegaConf.to_container(cfg.testbed), name="testbed parameters"
         )
-        writer = SummaryWriter(comment="bandit")
+        # writer = SummaryWriter(comment="bandit")
+        writer = SummaryWriter("runs")
         parameters = task.connect(OmegaConf.to_container(cfg.bandit))
         parameters["Q_init"] = cfg.Q_init._target_
 
