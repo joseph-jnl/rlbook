@@ -58,13 +58,8 @@ def optimal_action(df, group=[]):
 
     """
     df["optimal_action_true"] = np.where(df["action"] == df["optimal_action"], 1, 0)
-    df["running_optimal_action_true"] = df.groupby(["run"] + group)[
-        "optimal_action_true"
-    ].cumsum()
-    df["optimal_action_percent"] = np.where(
-        df["running_optimal_action_true"] == 0,
-        0,
-        df["running_optimal_action_true"] / (df["step"] + 1),
+    df["optimal_action_percent"] = df["step"].map(
+        df.groupby(["step"])["optimal_action_true"].sum() / (df["run"].max() + 1)
     )
 
     return df
@@ -144,7 +139,6 @@ def main(cfg: DictConfig):
         config = task.connect_configuration(
             OmegaConf.to_container(cfg.testbed), name="testbed parameters"
         )
-        # writer = SummaryWriter(comment="bandit")
         writer = SummaryWriter("runs")
         parameters = task.connect(OmegaConf.to_container(cfg.bandit))
         parameters["Q_init"] = cfg.Q_init._target_
