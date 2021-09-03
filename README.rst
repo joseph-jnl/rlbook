@@ -21,9 +21,9 @@ Quickstart
 
 * Ch 2 Bandits (rlbook/bandits.py)
 .. code-block::
-
-   streamlit run streamlit_apps/ch2_bandits.py
-
+        cd experiments
+        python bandits.py -m bandit.epsilon=0.0,0.01,0.1
+        tensorboard --logdir outputs/bandit/
 
 Credits
 -------

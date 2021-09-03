@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from rlbook.bandits import EpsilonGreedy, init_optimistic, Bandit, init_zero
+from rlbook.bandits import EpsilonGreedy, Bandit, init_constant
 from rlbook.testbeds import NormalTestbed
-from clearml import Task
 import hydra
 from hydra.utils import instantiate, call
 from omegaconf import DictConfig, OmegaConf
@@ -13,7 +12,7 @@ from tensorboardX import SummaryWriter
 
 
 local_logger = logging.getLogger("experiment")
-
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 def steps_violin_plotter(df_ar, testbed, run=0):
     df_estimate = testbed.estimate_distribution(1000)
@@ -65,22 +64,12 @@ def optimal_action(df, group=[]):
     return df
 
 
-def upload_scalars(df, logger, plot: str, column: str, series_name: str, **kwargs):
-    """Upload scalars to clearml"""
-    df = average_runs(df)
-    df.apply(
-        lambda x: logger.report_scalar(
-            title=plot,
-            series=series_name,
-            value=x[column],
-            iteration=x.step,
-        ),
-        axis=1,
-    )
-
-
-def write_scalars(df, writer, column: str, tag: str):
-    """Write scalars to local using tensorboardX"""
+def write_scalars(df, writer, column: str, tag: str, hp: dict):
+    """Write scalars to local using tensorboardX
+    
+    Return
+        Value of last step
+    """
     df = average_runs(df)
     df.apply(
         lambda x: writer.add_scalar(
@@ -90,6 +79,8 @@ def write_scalars(df, writer, column: str, tag: str):
         ),
         axis=1,
     )
+
+    return df[column].iloc[-1]
 
 
 @hydra.main(config_path="configs/bandits", config_name="defaults")
@@ -107,81 +98,48 @@ def main(cfg: DictConfig):
     df_ar = optimal_action(df_ar)
     local_logger.debug(f"{df_ar[['run', 'step', 'action', 'reward']].head(15)}")
 
-    if cfg.upload:
-        bandit_type = cfg.bandit._target_.split(".")[-1]
-        Q_init = cfg.Q_init._target_.split(".")[-1]
+    bandit_type = cfg.bandit._target_.split(".")[-1]
+    Q_init = cfg.Q_init._target_.split(".")[-1]
 
-        local_logger.info(f"Uploading to clearml")
-        task_name = f"{bandit_type} - " + ", ".join(
-            [
-                f"{k}: {OmegaConf.select(cfg, v).split('.')[-1]}"
-                if isinstance(OmegaConf.select(cfg, v), str)
-                else f"{k}: {OmegaConf.select(cfg, v)}"
-                for k, v in cfg.task_labels.items()
-            ]
-        )
-        local_logger.debug(f"{cfg['project']}: {task_name}")
-        task = Task.init(
-            project_name=cfg["project"],
-            task_name=task_name,
-            auto_connect_arg_parser=False,
-        )
-
-        tags = [f"{bandit_type}"] + [
+    task_name = f"{bandit_type} - " + ", ".join(
+        [
             f"{k}: {OmegaConf.select(cfg, v).split('.')[-1]}"
             if isinstance(OmegaConf.select(cfg, v), str)
             else f"{k}: {OmegaConf.select(cfg, v)}"
-            for k, v in cfg.tags.items()
+            for k, v in cfg.task_labels.items()
         ]
-        task.add_tags(tags)
+    )
+    local_logger.debug(f"{task_name}")
+    
+    # Log runs to tensorboard
+    writer = SummaryWriter("bandit")
+    hp_testbed = OmegaConf.to_container(cfg.testbed)
+    hp = OmegaConf.to_container(cfg.bandit)
+    hp["Q_init"] = cfg.Q_init._target_
+    hp["p_drift"] = hp_testbed['p_drift']
 
-        remote_logger = task.get_logger()
-        config = task.connect_configuration(
-            OmegaConf.to_container(cfg.testbed), name="testbed parameters"
-        )
-        writer = SummaryWriter("runs")
-        parameters = task.connect(OmegaConf.to_container(cfg.bandit))
-        parameters["Q_init"] = cfg.Q_init._target_
+    for i in range(5):
+        fig = steps_violin_plotter(df_ar, testbed, run=i)
+        writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
 
-        for i in range(5):
-            fig = steps_violin_plotter(df_ar, testbed, run=i)
-            remote_logger.report_matplotlib_figure(
-                figure=fig,
-                title="Action Rewards across a single run",
-                series="single_run",
-                iteration=i,
-                report_image=True,
-            )
-
-        # upload_scalars(
-        #     df_ar,
-        #     remote_logger,
-        #     "Average Reward",
-        #     "reward",
-        #     "reward",
-        # )
-        # upload_scalars(
-        #     df_ar,
-        #     remote_logger,
-        #     "% Optimal Action",
-        #     "optimal_action_percent",
-        #     "optimal_action_percent",
-        # )
-
-        write_scalars(
-            df_ar,
-            writer,
-            "reward",
-            "average_reward",
-        )
-        write_scalars(
-            df_ar,
-            writer,
-            "optimal_action_percent",
-            "optimal_action_percent",
-        )
-
-        task.close()
+    final_avg_reward = write_scalars(
+        df_ar,
+        writer,
+        "reward",
+        "average_reward",
+        hp
+    )
+    
+    final_optimal_action = write_scalars(
+        df_ar,
+        writer,
+        "optimal_action_percent",
+        "optimal_action_percent",
+        hp
+    )
+    final_metrics = {"average_reward": final_avg_reward, "optimal_action_percent": final_optimal_action}
+    local_logger.debug(f"final_metrics: {final_metrics}")
+    writer.add_hparams(hp, final_metrics)
 
 
 if __name__ == "__main__":

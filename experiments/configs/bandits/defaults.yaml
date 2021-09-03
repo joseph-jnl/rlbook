@@ -39,30 +39,30 @@ bandit:
   epsilon: 0
 
 Q_init: 
-  _target_: rlbook.bandits.init_zero
+  _target_: rlbook.bandits.init_constant
+  q_val: 0
 
 run:
   steps: 3
   n_runs: 5
   n_jobs: 8
 
-# clearml
 upload: False
-project: rlbook
-task: bandit
 task_labels:
   Q_init: Q_init._target_
   p_drift: testbed.p_drift
   e: bandit.epsilon
   alpha: bandit.alpha
 
-tags: 
-  Q_init: Q_init._target_
-  p_drift: testbed.p_drift
-
 hydra:
   run:
     dir: ./outputs/${hydra.job.override_dirname}
   sweep:
-    dir: ./outputs/${hydra.job.override_dirname}
-    subdir: e=${bandit.epsilon},alpha=${bandit.alpha},Q_init=${Q_init._target_},p_drift=${testbed.p_drift}
+    dir: ./outputs/bandit
+    subdir: ${hydra.job.override_dirname}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - run
+          - upload
