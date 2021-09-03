@@ -12,17 +12,9 @@ from itertools import repeat
 from copy import deepcopy
 
 
-def init_zero(testbed):
-    """"""
-    return {a: 0 for a in testbed.expected_values}
-
-
-def init_optimistic(testbed):
-    """"""
-    op_val = abs(max([testbed.action_value(a) for a in testbed.expected_values])) * 5
-    testbed.reset_ev()
-
-    return {a: int(op_val) for a in testbed.expected_values}
+def init_constant(testbed, q_val=0):
+    """Set initial action value estimate as a given constant, defaults to 0"""
+    return {a: q_val for a in testbed.expected_values}
 
 
 class Bandit(metaclass=ABCMeta):
