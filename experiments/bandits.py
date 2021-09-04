@@ -12,7 +12,8 @@ from tensorboardX import SummaryWriter
 
 
 local_logger = logging.getLogger("experiment")
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
 
 def steps_violin_plotter(df_ar, testbed, run=0):
     df_estimate = testbed.estimate_distribution(1000)
@@ -22,7 +23,7 @@ def steps_violin_plotter(df_ar, testbed, run=0):
     p = (
         p9.ggplot(
             p9.aes(
-                x="factor(action)",
+                x="reorder(factor(action), action)",
                 y="reward",
             )
         )
@@ -66,7 +67,7 @@ def optimal_action(df, group=[]):
 
 def write_scalars(df, writer, column: str, tag: str, hp: dict):
     """Write scalars to local using tensorboardX
-    
+
     Return
         Value of last step
     """
@@ -110,36 +111,29 @@ def main(cfg: DictConfig):
         ]
     )
     local_logger.debug(f"{task_name}")
-    
+
     # Log runs to tensorboard
     writer = SummaryWriter("bandit")
     hp_testbed = OmegaConf.to_container(cfg.testbed)
     hp = OmegaConf.to_container(cfg.bandit)
     hp["Q_init"] = cfg.Q_init._target_
-    hp["p_drift"] = hp_testbed['p_drift']
+    hp["p_drift"] = hp_testbed["p_drift"]
 
-    for i in range(5):
+    for i in range(3):
         fig = steps_violin_plotter(df_ar, testbed, run=i)
         writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
 
-    final_avg_reward = write_scalars(
-        df_ar,
-        writer,
-        "reward",
-        "average_reward",
-        hp
-    )
-    
+    final_avg_reward = write_scalars(df_ar, writer, "reward", "average_reward", hp)
+
     final_optimal_action = write_scalars(
-        df_ar,
-        writer,
-        "optimal_action_percent",
-        "optimal_action_percent",
-        hp
+        df_ar, writer, "optimal_action_percent", "optimal_action_percent", hp
     )
-    final_metrics = {"average_reward": final_avg_reward, "optimal_action_percent": final_optimal_action}
+    final_metrics = {
+        "average_reward": final_avg_reward,
+        "optimal_action_percent": final_optimal_action,
+    }
     local_logger.debug(f"final_metrics: {final_metrics}")
-    writer.add_hparams(hp, final_metrics)
+    writer.add_hparams(hp, final_metrics, global_step=cfg.run.steps)
 
 
 if __name__ == "__main__":
