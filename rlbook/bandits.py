@@ -10,6 +10,7 @@ from collections import namedtuple
 import logging
 from itertools import repeat
 from copy import deepcopy
+from math import sqrt, log
 
 
 def init_constant(testbed, q_val=0):
@@ -34,10 +35,11 @@ class Bandit(metaclass=ABCMeta):
             Current step in a run
         Q_init (initialization function):
             Function to use for initializing Q values, defaults to zero init
-        Q (float):
-            Action-value estimate
-        Qn (int):
+        Q (dict):
+            Action-value estimates in format {action: reward_estimate (float), ...}
+        Na (dict):
             Count of how many times an action has been chosen
+            {action X: action X count, ...}
         At (int):
             Action that corresponds to the index of the selected testbed arm
     """
@@ -54,7 +56,7 @@ class Bandit(metaclass=ABCMeta):
         self.n = 1
         self.Q_init = Q_init
         self.Q = deepcopy(Q_init)
-        self.nQ = {a: 0 for a in self.Q}
+        self.Na = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
 
     def initialization(self, testbed):
@@ -62,7 +64,7 @@ class Bandit(metaclass=ABCMeta):
         testbed.reset_ev()
         self.n = 1
         self.Q = deepcopy(self.Q_init)
-        self.nQ = {a: 0 for a in self.Q}
+        self.Na = {a: 0 for a in self.Q}
         self.At = self.argmax(self.Q)
 
     def argmax(self, Q):
@@ -148,6 +150,8 @@ class Bandit(metaclass=ABCMeta):
 
 class EpsilonGreedy(Bandit):
     """Epsilon greedy bandit
+    Choose the 'greedy' option that maximizes reward but 'explore' a random action
+    for a certain percentage of steps according to the epsilon value
 
     Attributes:
         epsilon (float):
@@ -158,10 +162,8 @@ class EpsilonGreedy(Bandit):
             of past rewards and initial estimate of Q
 
             Note on varying step sizes such as using 1/n "sample_average":
-                self.Q[self.At] = self.Q[self.At] + 1/self.nQ[self.At]*(R-self.Q[self.At])
+                self.Q[self.At] = self.Q[self.At] + 1/self.Na[self.At]*(R-self.Q[self.At])
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
-        Output (namedtuple):
-            Named tuple containing outputs when select action method is called.
     """
 
     def __init__(self, Q_init: Dict, epsilon=0.1, alpha=0.1):
@@ -174,13 +176,74 @@ class EpsilonGreedy(Bandit):
             self.At = list(self.Q.keys())[np.random.randint(len(self.Q))]
         else:
             self.At = self.argmax(self.Q)
-        A_best = list(testbed.expected_values.keys())[
-            np.argmax([ev["mean"] for ev in testbed.expected_values.values()])
-        ]
+
+        A_best = testbed.best_action()
         R = testbed.action_value(self.At)
-        self.nQ[self.At] += 1
+        self.Na[self.At] += 1
         if self.alpha == "sample_average":
-            self.Q[self.At] = self.Q[self.At] + 1 / self.nQ[self.At] * (
+            self.Q[self.At] = self.Q[self.At] + 1 / self.Na[self.At] * (
+                R - self.Q[self.At]
+            )
+        else:
+            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
+
+        self.n += 1
+
+        return (self.At, R, A_best)
+
+    def output_df(self):
+        """Reshape action_values numpy array and output as pandas dataframe
+        Add epsilon coefficient used for greedy bandit
+        """
+        df = super().output_df()
+        df["epsilon"] = self.epsilon
+
+        return df
+
+
+class UCL(Bandit):
+    """Upper Confidence Limit bandit
+    Estimate an upper bound for a given action that includes a measure of uncertainty
+    based on how often the action has been chosen in the past
+    
+    At  = argmax( Qt(a) + c * sqrt(ln(t)/Nt(a)))
+    
+    Sqrt term is a measure of variance of an action's Upper Bound
+    The more often an action is selected, the uncertainty decreases (denominator increases)
+    When another action is selected, 
+    the uncertainty increases (the numerator since time increase, but in smaller increments due to the ln)
+
+    Attributes:
+        c (float):
+            c > 0 controls the degree of exploration, specifically the confidence level of a UCL for a given action
+        U (dict):
+            Action-value uncertainty estimate in format {action: uncertainty (float), ...}
+        alpha (float or "sample_average"):
+            Constant step size ranging from 0.0 to 1.0, resulting in Q being the weighted average
+            of past rewards and initial estimate of Q
+
+            Note on varying step sizes such as using 1/n "sample_average":
+                self.Q[self.At] = self.Q[self.At] + 1/self.Na[self.At]*(R-self.Q[self.At])
+            Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
+    """
+
+    def __init__(self, Q_init: Dict, c=0.1, alpha=0.1):
+        """Also use self.Na from base bandit class
+        """
+        super().__init__(Q_init)
+        self.c = c 
+        self.U = {a: Q + self.c * sqrt(log(self.n)/self.Na[a]) for a, Q in self.Q.items()}
+        self.alpha = alpha
+
+    def select_action(self, testbed):
+        self.At = self.argmax(self.U)
+
+        A_best = testbed.best_action()
+        R = testbed.action_value(self.At)
+        self.Na[self.At] += 1
+        if self.alpha == "sample_average":
+            self.Q[self.At] = self.Q[self.At] + 1 / self.Na[self.At] * (
                 R - self.Q[self.At]
             )
         else:

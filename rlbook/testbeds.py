@@ -28,10 +28,27 @@ class Testbed(metaclass=ABCMeta):
             Ra["action"] = a
             Ra["strategy"] = "uniform"
             R = pd.concat([R, Ra])
+        # Also include initial EV if pdrift shifted EVs
+        if self.initial_ev != self.expected_values:
+            self.expected_values = deepcopy(self.initial_ev)
+            for a in self.initial_ev:
+                Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
+                Ra["action"] = a
+                Ra["strategy"] = "uniform"
+                R = pd.concat([R, Ra])
         return R
 
     def reset_ev(self):
         self.expected_values = deepcopy(self.initial_ev)
+
+    def best_action(self):
+        """Return true best action that should have been taken based on EV state
+        """
+
+        A_best = list(self.expected_values.keys())[
+            np.argmax([ev["mean"] for ev in self.expected_values.values()])
+        ]
+        return A_best
 
     @abstractmethod
     def action_value(self, action, shape=None) -> np.ndarray or float:
