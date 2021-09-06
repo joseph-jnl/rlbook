@@ -60,7 +60,7 @@ class Bandit(metaclass=ABCMeta):
         self.At = self.argmax(self.Q)
 
     def initialization(self, testbed):
-        """Initialize bandit for a new run"""
+        """Reinitialize bandit for a new run when running in serial or parallel"""
         testbed.reset_ev()
         self.n = 1
         self.Q = deepcopy(self.Q_init)
@@ -233,10 +233,20 @@ class UCL(Bandit):
         """
         super().__init__(Q_init)
         self.c = c 
-        self.U = {a: Q + self.c * sqrt(log(self.n)/self.Na[a]) for a, Q in self.Q.items()}
+        # Initialize self.Na as 1e-100 number instead of 0
+        self.Na = {a: 1e-100 for a in self.Na}
         self.alpha = alpha
 
+    def initialization(self, testbed):
+        """Reinitialize bandit attributes for a new run"""
+        testbed.reset_ev()
+        self.n = 1
+        self.Q = deepcopy(self.Q_init)
+        self.Na = {a: 1e-100 for a in self.Na}
+
     def select_action(self, testbed):
+        logging.debug(f"Na: {self.Na}")
+        self.U = {a: Q + self.c * sqrt(log(self.n)/self.Na[a]) for a, Q in self.Q.items()}
         self.At = self.argmax(self.U)
 
         A_best = testbed.best_action()
@@ -259,6 +269,6 @@ class UCL(Bandit):
         Add epsilon coefficient used for greedy bandit
         """
         df = super().output_df()
-        df["epsilon"] = self.epsilon
+        df["c"] = self.c
 
         return df

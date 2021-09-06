@@ -36,7 +36,6 @@ testbed:
 bandit:
   _target_: rlbook.bandits.EpsilonGreedy
   alpha: sample_average
-  epsilon: 0
 
 Q_init: 
   _target_: rlbook.bandits.init_constant
