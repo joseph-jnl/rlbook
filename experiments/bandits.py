@@ -119,7 +119,7 @@ def main(cfg: DictConfig):
     hp["Q_init"] = cfg.Q_init._target_
     hp["p_drift"] = hp_testbed["p_drift"]
 
-    for i in range(3):
+    for i in range(min(3, cfg.run.n_runs)):
         fig = steps_violin_plotter(df_ar, testbed, run=i)
         writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
 
