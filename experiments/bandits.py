@@ -8,7 +8,8 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 from typing import Dict
 import plotnine as p9
-from tensorboardX import SummaryWriter
+from aim import Session
+from pathlib import Path
 
 
 local_logger = logging.getLogger("experiment")
@@ -65,18 +66,18 @@ def optimal_action(df, group=[]):
     return df
 
 
-def write_scalars(df, writer, column: str, tag: str, hp: dict):
-    """Write scalars to local using tensorboardX
+def write_scalars(df, session, column: str, tag: str, hp: dict):
+    """Write scalars to local using aim
 
     Return
         Value of last step
     """
     df = average_runs(df)
     df.apply(
-        lambda x: writer.add_scalar(
-            tag,
+        lambda x: session.track(
             x[column],
-            x.step,
+            epoch=int(x.step),
+            name=tag,
         ),
         axis=1,
     )
@@ -86,13 +87,19 @@ def write_scalars(df, writer, column: str, tag: str, hp: dict):
 
 @hydra.main(config_path="configs/bandits", config_name="defaults")
 def main(cfg: DictConfig):
+    session = Session(
+        repo=(Path.home() / "projects/rlbook/experiments/outputs/bandit").as_posix(),
+        experiment=cfg.bandit["_target_"].split(".")[-1],
+    )
 
     testbed = instantiate(cfg.testbed)
     bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed))
+
     local_logger.info(f"Running bandit: {cfg.run}")
     local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
     local_logger.debug(f"bandit config: {cfg['bandit']}")
     local_logger.debug(f"run config: {cfg['run']}")
+    session.set_params(OmegaConf.to_container(cfg.run), "experiment")
     bandit.run(testbed, **OmegaConf.to_container(cfg.run))
 
     df_ar = bandit.output_df()
@@ -112,28 +119,27 @@ def main(cfg: DictConfig):
     )
     local_logger.debug(f"{task_name}")
 
-    # Log runs to tensorboard
-    writer = SummaryWriter("bandit")
     hp_testbed = OmegaConf.to_container(cfg.testbed)
     hp = OmegaConf.to_container(cfg.bandit)
     hp["Q_init"] = cfg.Q_init._target_
     hp["p_drift"] = hp_testbed["p_drift"]
+    session.set_params(hp, "hyperparameters")
 
-    for i in range(min(3, cfg.run.n_runs)):
-        fig = steps_violin_plotter(df_ar, testbed, run=i)
-        writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
+    # for i in range(min(3, cfg.run.n_runs)):
+    #     fig = steps_violin_plotter(df_ar, testbed, run=i)
+    #     writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
 
-    final_avg_reward = write_scalars(df_ar, writer, "reward", "average_reward", hp)
+    final_avg_reward = write_scalars(df_ar, session, "reward", "average_reward", hp)
 
     final_optimal_action = write_scalars(
-        df_ar, writer, "optimal_action_percent", "optimal_action_percent", hp
+        df_ar, session, "optimal_action_percent", "optimal_action_percent", hp
     )
     final_metrics = {
         "average_reward": final_avg_reward,
         "optimal_action_percent": final_optimal_action,
     }
+    session.set_params(final_metrics, "final_metrics")
     local_logger.debug(f"final_metrics: {final_metrics}")
-    writer.add_hparams(hp, final_metrics, global_step=cfg.run.steps)
 
 
 if __name__ == "__main__":
