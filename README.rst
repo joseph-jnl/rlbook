@@ -22,8 +22,8 @@ Quickstart
 * Ch 2 Bandits (rlbook/bandits.py)
 .. code-block::
     cd experiments
-    python bandits.py -m bandit.epsilon=0.0,0.01,0.1
-    tensorboard --logdir outputs/bandit/
+    python bandits.py -m run.steps=1000 run.n_runs=2000 +bandit.epsilon=0.0,0.01,0.1
+    aim up -p 6006 --repo outputs/bandit/
 
 Credits
 -------
