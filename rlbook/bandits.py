@@ -229,7 +229,7 @@ class UCL(Bandit):
     """
 
     def __init__(self, Q_init: Dict, c=0.1, alpha=0.1):
-        """Also use self.Na from base bandit class
+        """
         """
         super().__init__(Q_init)
         self.c = c 
@@ -266,9 +266,102 @@ class UCL(Bandit):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
-        Add epsilon coefficient used for greedy bandit
+        Add c coefficient used for UCL 
         """
         df = super().output_df()
         df["c"] = self.c
+
+        return df
+
+
+class Gradient(Bandit):
+    """Gradient bandit
+    Learn a set of numerical preferences "H" rather than estimate a set of action values "Q"
+    H preferences are all relative to each other, no correlation to a potential reward
+    
+    Update H using: 
+    Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
+    Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+    where At is action chosen
+
+    Attributes:
+        H (dict):
+            Action-value uncertainty estimate in format {action: uncertainty (float), ...}
+        lr (float between 0.0-1.0):
+            learning rate, step size to update H
+        alpha (float or "sample_average"):
+            Constant step size ranging from 0.0 to 1.0, resulting in Q being the weighted average
+            of past rewards and initial estimate of Q
+
+            Note on varying step sizes such as using 1/n "sample_average":
+                self.Q[self.At] = self.Q[self.At] + 1/self.Na[self.At]*(R-self.Q[self.At])
+            Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
+    """
+
+    def __init__(self, Q_init: Dict, lr=0.1, alpha=0.1):
+        """
+        """
+        super().__init__(Q_init)
+        self.lr = lr 
+        self.alpha = alpha
+        self.H = deepcopy(self.Q_init)
+
+    def initialization(self, testbed):
+        """Reinitialize bandit attributes for a new run"""
+        testbed.reset_ev()
+        self.n = 1
+        self.H = deepcopy(self.Q_init)
+        self.Q = deepcopy(self.Q_init)
+        self.Na = {a: 0 for a in self.Q}
+
+    def softmax(self, H):
+        h = np.array([val for val in H.values()]) 
+        probs = np.exp(h)/sum(np.exp(h))
+        return dict(zip(H.keys(), probs))
+
+
+    def select_action(self, testbed):
+        """
+        Select At based on H prob
+
+        Then update H via:
+        Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
+        Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+        where At is action chosen
+        """
+        probs = self.softmax(self.H)
+        logging.debug(f"probs: {probs}")
+        self.At = int(np.random.choice(list(self.H.keys()), 1, p=list(probs.values())))
+
+        A_best = testbed.best_action()
+        R = testbed.action_value(self.At)
+        self.Na[self.At] += 1
+        logging.debug(f"H: {self.H}")
+        logging.debug(f"Q: {self.Q}")
+        for a in self.H:
+            if a == self.At:
+                self.H[a] = self.H[a] + self.lr * (R - self.Q[a]) * (1 - probs[a])
+            else:
+                self.H[a] = self.H[a] - self.lr * (R - self.Q[a]) * (probs[a])
+
+        if self.alpha == "sample_average":
+            self.Q[self.At] = self.Q[self.At] + 1 / self.Na[self.At] * (
+                R - self.Q[self.At]
+            )
+        else:
+            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
+
+        self.n += 1
+
+        return (self.At, R, A_best)
+
+
+    def output_df(self):
+        """Reshape action_values numpy array and output as pandas dataframe
+        Add learning rate 
+        """
+        df = super().output_df()
+        df["lr"] = self.lr
 
         return df
