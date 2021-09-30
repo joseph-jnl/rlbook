@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-from rlbook.bandits import EpsilonGreedy, Bandit, init_constant
-from rlbook.testbeds import NormalTestbed
 import hydra
 from hydra.utils import instantiate, call
 from omegaconf import DictConfig, OmegaConf
@@ -10,8 +8,10 @@ from typing import Dict
 import plotnine as p9
 from aim import Session
 from pathlib import Path
+import os
 
 
+os.environ["AIM_UI_TELEMETRY_ENABLED"] = "0"
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
@@ -104,7 +104,7 @@ def main(cfg: DictConfig):
 
     df_ar = bandit.output_df()
     df_ar = optimal_action(df_ar)
-    local_logger.debug(f"{df_ar[['run', 'step', 'action', 'reward']].head(15)}")
+    local_logger.debug(f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']].head(15)}")
 
     bandit_type = cfg.bandit._target_.split(".")[-1]
     Q_init = cfg.Q_init._target_.split(".")[-1]
