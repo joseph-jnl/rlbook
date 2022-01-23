@@ -3,5 +3,8 @@ name: rlbook
 dependencies:
   - pandas
   - numpy
-  - altair
   - jupyterlab
+  - matplotlib
+
+- pip:
+  - hydra-core
