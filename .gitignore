@@ -113,3 +113,6 @@ ENV/
 
 #hydra
 .hydra/
+
+# aim
+.aim/
