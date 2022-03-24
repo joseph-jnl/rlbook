@@ -46,18 +46,15 @@ run:
   n_runs: 5
   n_jobs: 8
 
-task_labels:
-  Q_init: Q_init._target_
-  p_drift: testbed.p_drift
-  e: bandit.epsilon
-  alpha: bandit.alpha
+experiment:
+  name: bandit 
 
 hydra:
   run:
-    dir: ./outputs/bandit/${hydra.job.override_dirname}
+    dir: ./outputs/bandit/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
   sweep:
-    dir: ./outputs/bandit
-    subdir: ${hydra.job.override_dirname}
+    dir: ./outputs/bandit/hydra/${bandit._target_}
+    subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
   job:
     config:
       override_dirname:

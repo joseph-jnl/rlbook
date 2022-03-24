@@ -2,13 +2,16 @@ import pandas as pd
 import numpy as np
 import hydra
 from hydra.utils import instantiate, call
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 import logging
 from typing import Dict
 import plotnine as p9
-from aim import Session
+from aim import Run
 from pathlib import Path
 import os
+import time
+from datetime import timedelta
 
 
 os.environ["AIM_UI_TELEMETRY_ENABLED"] = "0"
@@ -87,9 +90,10 @@ def write_scalars(df, session, column: str, tag: str, hp: dict):
 
 @hydra.main(config_path="configs/bandits", config_name="defaults")
 def main(cfg: DictConfig):
-    session = Session(
+    session_name = "debug" if HydraConfig.get().verbose else cfg.experiment["name"]
+    session = Run(
         repo=(Path.home() / "projects/rlbook/experiments/outputs/bandit").as_posix(),
-        experiment=cfg.bandit["_target_"].split(".")[-1],
+        experiment=session_name,
     )
 
     testbed = instantiate(cfg.testbed)
@@ -99,8 +103,12 @@ def main(cfg: DictConfig):
     local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
     local_logger.debug(f"bandit config: {cfg['bandit']}")
     local_logger.debug(f"run config: {cfg['run']}")
-    session.set_params(OmegaConf.to_container(cfg.run), "experiment")
+    session["experiment"] = OmegaConf.to_container(cfg.run)
+
+    run_start = time.monotonic()
     bandit.run(testbed, **OmegaConf.to_container(cfg.run))
+    run_end = time.monotonic()
+    session["duration"] = timedelta(seconds= run_end - run_start)
 
     df_ar = bandit.output_df()
     df_ar = optimal_action(df_ar)
@@ -109,22 +117,13 @@ def main(cfg: DictConfig):
     bandit_type = cfg.bandit._target_.split(".")[-1]
     Q_init = cfg.Q_init._target_.split(".")[-1]
 
-    task_name = f"{bandit_type} - " + ", ".join(
-        [
-            f"{k}: {OmegaConf.select(cfg, v).split('.')[-1]}"
-            if isinstance(OmegaConf.select(cfg, v), str)
-            else f"{k}: {OmegaConf.select(cfg, v)}"
-            for k, v in cfg.task_labels.items()
-        ]
-    )
-    local_logger.debug(f"{task_name}")
-
     hp_testbed = OmegaConf.to_container(cfg.testbed)
     hp = OmegaConf.to_container(cfg.bandit)
     hp["Q_init"] = cfg.Q_init._target_
+    hp["Q_init_value"] = cfg.Q_init.q_val
     hp["p_drift"] = hp_testbed["p_drift"]
-    session.set_params(hp, "hyperparameters")
-
+    session["hyperparameters"] = hp
+    
     # for i in range(min(3, cfg.run.n_runs)):
     #     fig = steps_violin_plotter(df_ar, testbed, run=i)
     #     writer.add_figure(f"run{i}", fig, global_step=cfg.run.steps)
@@ -138,7 +137,7 @@ def main(cfg: DictConfig):
         "average_reward": final_avg_reward,
         "optimal_action_percent": final_optimal_action,
     }
-    session.set_params(final_metrics, "final_metrics")
+    session["final_metrics"] = final_metrics
     local_logger.debug(f"final_metrics: {final_metrics}")
 
 
