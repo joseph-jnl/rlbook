@@ -5,7 +5,7 @@ import pytest
 from pandas.testing import assert_series_equal
 
 from rlbook.bandits import EpsilonGreedy, init_constant
-from rlbook.testbeds import NormalTestbed
+from rlbook.bandits.testbeds import NormalTestbed
 
 EXPECTED_VALUES = {
     1: {"mean": 2, "var": 1},
