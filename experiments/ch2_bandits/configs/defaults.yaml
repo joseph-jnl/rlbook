@@ -1,5 +1,5 @@
 testbed:
-  _target_: rlbook.testbeds.NormalTestbed 
+  _target_: rlbook.bandits.testbeds.NormalTestbed 
   expected_values:
     1: 
      mean: 0.2
@@ -34,11 +34,11 @@ testbed:
   p_drift: 0.0
 
 bandit:
-  _target_: rlbook.bandits.EpsilonGreedy
+  _target_: rlbook.bandits.algorithms.EpsilonGreedy
   alpha: sample_average
 
 Q_init: 
-  _target_: rlbook.bandits.init_constant
+  _target_: rlbook.bandits.algorithms.init_constant
   q_val: 0
 
 run:
@@ -48,6 +48,7 @@ run:
 
 experiment:
   name: bandit 
+  upload: false
 
 hydra:
   run:

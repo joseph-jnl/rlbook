@@ -3,10 +3,8 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import Callable, Type, Dict
-from rlbook.testbeds import Testbed
+from typing import Dict
 import warnings
-from collections import namedtuple
 import logging
 from itertools import repeat
 from copy import deepcopy
