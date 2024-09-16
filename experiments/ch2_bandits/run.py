@@ -82,7 +82,7 @@ def write_scalars(df, session, column: str, tag: str, hp: dict):
     return df[column].iloc[-1]
 
 
-@hydra.main(config_path="configs", config_name="defaults")
+@hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
 def main(cfg: DictConfig):
     hp_testbed = OmegaConf.to_container(cfg.testbed)
     hp = OmegaConf.to_container(cfg.bandit)
