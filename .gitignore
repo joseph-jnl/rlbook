@@ -114,7 +114,5 @@ ENV/
 #hydra
 .hydra/
 
-# aim
-.aim/
-experiments/outputs/bandit/hydra/rlbook.bandits.EpsilonGreedy/multirun.yaml
-notebooks/RL-greedy_epsilon_bandit.ipynb
+#experiment local outputs
+experiments/ch2_bandits/outputs/
