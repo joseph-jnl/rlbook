@@ -1,14 +1,15 @@
-import pandas as pd
-import numpy as np
+import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
+from itertools import repeat
+from math import log, sqrt
 from multiprocessing import cpu_count
 from typing import Dict
-import warnings
-import logging
-from itertools import repeat
-from copy import deepcopy
-from math import sqrt, log
+
+import numpy as np
+import pandas as pd
 
 
 def init_constant(testbed, q_val=0):
@@ -204,12 +205,12 @@ class UCL(Bandit):
     """Upper Confidence Limit bandit
     Estimate an upper bound for a given action that includes a measure of uncertainty
     based on how often the action has been chosen in the past
-    
+
     At  = argmax( Qt(a) + c * sqrt(ln(t)/Nt(a)))
-    
+
     Sqrt term is a measure of variance of an action's Upper Bound
     The more often an action is selected, the uncertainty decreases (denominator increases)
-    When another action is selected, 
+    When another action is selected,
     the uncertainty increases (the numerator since time increase, but in smaller increments due to the ln)
 
     Attributes:
@@ -227,10 +228,9 @@ class UCL(Bandit):
     """
 
     def __init__(self, Q_init: Dict, c=0.1, alpha=0.1):
-        """
-        """
+        """ """
         super().__init__(Q_init)
-        self.c = c 
+        self.c = c
         # Initialize self.Na as 1e-100 number instead of 0
         self.Na = {a: 1e-100 for a in self.Na}
         self.alpha = alpha
@@ -244,7 +244,9 @@ class UCL(Bandit):
 
     def select_action(self, testbed):
         logging.debug(f"Na: {self.Na}")
-        self.U = {a: Q + self.c * sqrt(log(self.n)/self.Na[a]) for a, Q in self.Q.items()}
+        self.U = {
+            a: Q + self.c * sqrt(log(self.n) / self.Na[a]) for a, Q in self.Q.items()
+        }
         self.At = self.argmax(self.U)
 
         A_best = testbed.best_action()
@@ -264,7 +266,7 @@ class UCL(Bandit):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
-        Add c coefficient used for UCL 
+        Add c coefficient used for UCL
         """
         df = super().output_df()
         df["c"] = self.c
@@ -276,10 +278,10 @@ class Gradient(Bandit):
     """Gradient bandit
     Learn a set of numerical preferences "H" rather than estimate a set of action values "Q"
     H preferences are all relative to each other, no correlation to a potential reward
-    
-    Update H using: 
+
+    Update H using:
     Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
-    Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+    Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At
     where At is action chosen
 
     Attributes:
@@ -297,10 +299,9 @@ class Gradient(Bandit):
     """
 
     def __init__(self, Q_init: Dict, lr=0.1, alpha=0.1):
-        """
-        """
+        """ """
         super().__init__(Q_init)
-        self.lr = lr 
+        self.lr = lr
         self.alpha = alpha
         self.H = deepcopy(self.Q_init)
 
@@ -313,10 +314,9 @@ class Gradient(Bandit):
         self.Na = {a: 0 for a in self.Q}
 
     def softmax(self, H):
-        h = np.array([val for val in H.values()]) 
-        probs = np.exp(h)/sum(np.exp(h))
+        h = np.array([val for val in H.values()])
+        probs = np.exp(h) / sum(np.exp(h))
         return dict(zip(H.keys(), probs))
-
 
     def select_action(self, testbed):
         """
@@ -324,7 +324,7 @@ class Gradient(Bandit):
 
         Then update H via:
         Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
-        Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+        Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At
         where At is action chosen
         """
         probs = self.softmax(self.H)
@@ -354,10 +354,9 @@ class Gradient(Bandit):
 
         return (self.At, R, A_best)
 
-
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
-        Add learning rate 
+        Add learning rate
         """
         df = super().output_df()
         df["lr"] = self.lr
