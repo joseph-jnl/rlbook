@@ -34,6 +34,7 @@ testbed:
   p_drift: 0.0
 
 bandit:
+  # EpsilonGreedy, UCL, Gradient
   _target_: rlbook.bandits.algorithms.EpsilonGreedy
   alpha: sample_average
 

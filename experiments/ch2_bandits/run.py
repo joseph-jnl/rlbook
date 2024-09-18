@@ -63,7 +63,7 @@ def optimal_action(df, group=[]):
     return df
 
 
-def write_scalars(df, session, column: str, tag: str, hp: dict):
+def write_scalars(df, column: str, tag: str, hp: dict):
     """Write scalars to local using aim
 
     Return
@@ -71,7 +71,7 @@ def write_scalars(df, session, column: str, tag: str, hp: dict):
     """
     df = average_runs(df)
     df.apply(
-        lambda x: session.track(
+        lambda x: wandb.log(
             x[column],
             epoch=int(x.step),
             name=tag,
@@ -84,6 +84,12 @@ def write_scalars(df, session, column: str, tag: str, hp: dict):
 
 @hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
 def main(cfg: DictConfig):
+    local_logger.info("Run in debug mode by setting hydra.verbose=true")
+    if not cfg.experiment.upload:
+        local_logger.info(
+            "wandb upload set to false, local run only. Set cfg.experiment.upload=true to track experiment"
+        )
+
     hp_testbed = OmegaConf.to_container(cfg.testbed)
     hp = OmegaConf.to_container(cfg.bandit)
     hp["Q_init"] = cfg.Q_init._target_
@@ -105,28 +111,26 @@ def main(cfg: DictConfig):
     df_ar = bandit.output_df()
     df_ar = optimal_action(df_ar)
     local_logger.debug(
-        f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']].head(15)}"
+        f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']]}"
     )
 
     # bandit_type = cfg.bandit._target_.split(".")[-1]
     # Q_init = cfg.Q_init._target_.split(".")[-1]
 
-    final_avg_reward = write_scalars(df_ar, session, "reward", "average_reward", hp)
-
-    final_optimal_action = write_scalars(
-        df_ar, session, "optimal_action_percent", "optimal_action_percent", hp
-    )
-    final_metrics = {
-        "average_reward": final_avg_reward,
-        "optimal_action_percent": final_optimal_action,
-    }
-
-    local_logger.debug(f"final_metrics: {final_metrics}")
-    if cfg.upload:
+    if cfg.experiment.upload:
         tag = "debug" if HydraConfig.get().verbose else cfg.experiment["name"]
         wandb.init(project="rlbook", group="bandits", tags=[tag])
         wandb.config = hp
         wandb.log({"duration": timedelta(seconds=run_end - run_start)})
+
+        final_avg_reward = write_scalars(df_ar, "reward", "average_reward", hp)
+        final_optimal_action = write_scalars(
+            df_ar, "optimal_action_percent", "optimal_action_percent", hp
+        )
+        final_metrics = {
+            "average_reward": final_avg_reward,
+            "optimal_action_percent": final_optimal_action,
+        }
         wandb.log({"final_metrics": final_metrics})
 
 
