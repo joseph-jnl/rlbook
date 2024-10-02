@@ -1,3 +1,16 @@
+hydra:
+  run:
+    dir: ./outputs/bandit/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ./outputs/bandit/hydra/${bandit._target_}
+    subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - run
+          - upload
+
 testbed:
   _target_: rlbook.bandits.testbeds.NormalTestbed 
   expected_values:
@@ -50,16 +63,3 @@ run:
 experiment:
   name: bandit 
   upload: false
-
-hydra:
-  run:
-    dir: ./outputs/bandit/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
-  sweep:
-    dir: ./outputs/bandit/hydra/${bandit._target_}
-    subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
-  job:
-    config:
-      override_dirname:
-        exclude_keys:
-          - run
-          - upload
