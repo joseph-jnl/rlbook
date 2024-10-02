@@ -37,24 +37,31 @@ def steps_violin_plotter(df_ar, testbed, run=0):
     # return fig
 
 
-def average_runs(df, group=[]):
+def average_runs(df, group=None):
     """Average all dataframe columns across runs
 
     Attributes:
         group (list): Additional list of columns to group by before taking the average
 
     """
+    if group is None:
+        group = []
+
     return df.groupby(["step"] + group).mean().reset_index()
 
 
-def optimal_action(df, group=[]):
-    """Create new column "optimal_action_percent"
+def optimal_action(df, group=None):
+    """Calculate the percentage of runs that took the optimal action at this step,
+        creates new column "optimal_action_percent"
 
     Attributes:
         group (list):
             Additional list of columns to group by before calculating percent optimal action
 
     """
+    if group is None:
+        group = []
+
     df["optimal_action_true"] = np.where(df["action"] == df["optimal_action"], 1, 0)
     df["optimal_action_percent"] = df["step"].map(
         df.groupby(["step"])["optimal_action_true"].sum() / (df["run"].max() + 1)
@@ -63,23 +70,21 @@ def optimal_action(df, group=[]):
     return df
 
 
-def write_scalars(df, column: str, tag: str, hp: dict):
-    """Write scalars to local using aim
+def upload(df, columns: list[str]):
+    """Upload selected columns from dataframe to remote wandb
+
+    Args:
+        columns: List of column names to log to wandb
 
     Return
-        Value of last step
+        Dict of values of last step
     """
-    df = average_runs(df)
-    df.apply(
-        lambda x: wandb.log(
-            x[column],
-            epoch=int(x.step),
-            name=tag,
-        ),
-        axis=1,
-    )
+    df = df[columns]
+    rows = df.to_dict(orient="records")
+    for r in rows:
+        wandb.log(r)
 
-    return df[column].iloc[-1]
+    return r
 
 
 @hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
@@ -119,19 +124,15 @@ def main(cfg: DictConfig):
 
     if cfg.experiment.upload:
         tag = "debug" if HydraConfig.get().verbose else cfg.experiment["name"]
-        wandb.init(project="rlbook", group="bandits", tags=[tag])
-        wandb.config = hp
-        wandb.log({"duration": timedelta(seconds=run_end - run_start)})
+        wandb.init(project="rlbook", group="bandits", config=hp, tags=[tag])
+        wandb.define_metric("reward", summary="last")
+        wandb.define_metric("optimal_action_percent", summary="last")
+        df_avg_ar = average_runs(df_ar)
+        upload(df_avg_ar, ["reward", "optimal_action_percent"])
 
-        final_avg_reward = write_scalars(df_ar, "reward", "average_reward", hp)
-        final_optimal_action = write_scalars(
-            df_ar, "optimal_action_percent", "optimal_action_percent", hp
+        wandb.log(
+            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}
         )
-        final_metrics = {
-            "average_reward": final_avg_reward,
-            "optimal_action_percent": final_optimal_action,
-        }
-        wandb.log({"final_metrics": final_metrics})
 
 
 if __name__ == "__main__":
