@@ -8,40 +8,55 @@ import wandb
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import call, instantiate
 from omegaconf import DictConfig, OmegaConf
+from plotnine import aes, geom_jitter, geom_violin, ggplot, ggtitle, theme, xlab, ylab
 
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
-def steps_violin_plotter(df_ar, testbed, run=0):
+def steps_violin_plotter(df_ar, testbed, run: int = 0):
+    """Return plot of reward distribution overlayed with
+    actions taken over a single run
+
+    Args:
+        df_ar:
+            DataFrame of actions and rewards
+        testbed:
+            A bandits.testbeds.Testbed instance
+        run:
+            An integer defining which run will have its actions overlaid
+    """
     df_estimate = testbed.estimate_distribution(1000)
     df_estimate = df_estimate.astype({"action": "int32"})
     df_ar = df_ar.loc[df_ar["run"] == run]
     df_ar = df_ar.astype({"action": "int32"})
-    # p = (
-    #     p9.ggplot(
-    #         p9.aes(
-    #             x="reorder(factor(action), action)",
-    #             y="reward",
-    #         )
-    #     )
-    #     + p9.ggtitle(f"Action - Rewards across {df_ar.shape[0]} steps")
-    #     + p9.xlab("k-arm")
-    #     + p9.ylab("Reward")
-    #     + p9.geom_violin(df_estimate, fill="#d0d3d4")
-    #     + p9.geom_jitter(df_ar, p9.aes(color="step"))
-    #     + p9.theme(figure_size=(20, 9))
-    # )
-    # fig = p.draw()
+    p = (
+        ggplot(
+            aes(
+                x="reorder(factor(action), action)",
+                y="reward",
+            )
+        )
+        + ggtitle(f"Action - Rewards across {df_ar.shape[0]} steps from Run {run}")
+        + xlab("k-arm")
+        + ylab("Reward")
+        + geom_violin(df_estimate, fill="#d0d3d4")
+        + geom_jitter(df_ar, aes(color="step"))
+        + theme(figure_size=(20, 9))
+    )
+    fig = p.draw()
 
-    # return fig
+    return fig
 
 
 def average_runs(df, group=None):
     """Average all dataframe columns across runs
 
-    Attributes:
-        group (list): Additional list of columns to group by before taking the average
+    Args:
+        df:
+            DataFrame with step column
+        group (list):
+            Additional list of columns to group by before taking the average
 
     """
     if group is None:
@@ -54,7 +69,7 @@ def optimal_action(df, group=None):
     """Calculate the percentage of runs that took the optimal action at this step,
         creates new column "optimal_action_percent"
 
-    Attributes:
+    Args:
         group (list):
             Additional list of columns to group by before calculating percent optimal action
 
@@ -74,7 +89,10 @@ def upload(df, columns: list[str]):
     """Upload selected columns from dataframe to remote wandb
 
     Args:
-        columns: List of column names to log to wandb
+        df:
+            Dataframe
+        columns:
+            List of column names to log to wandb
 
     Return
         Dict of values of last step
@@ -123,7 +141,7 @@ def main(cfg: DictConfig):
     # Q_init = cfg.Q_init._target_.split(".")[-1]
 
     if cfg.experiment.upload:
-        tag = "debug" if HydraConfig.get().verbose else cfg.experiment["name"]
+        tag = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
         wandb.init(project="rlbook", group="bandits", config=hp, tags=[tag])
         wandb.define_metric("reward", summary="last")
         wandb.define_metric("optimal_action_percent", summary="last")
@@ -132,6 +150,10 @@ def main(cfg: DictConfig):
 
         wandb.log(
             {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}
+        )
+
+        wandb.log(
+            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}
         )
 
 

@@ -62,4 +62,5 @@ run:
 
 experiment:
   name: bandit 
+  tag: default
   upload: false
