@@ -1,8 +1,9 @@
-import pandas as pd
-import numpy as np
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Type, Dict
 from copy import deepcopy
+from typing import Dict
+
+import numpy as np
+import pandas as pd
 
 
 class Testbed(metaclass=ABCMeta):
@@ -22,28 +23,30 @@ class Testbed(metaclass=ABCMeta):
         n (int): Number of iterations to execute in testbed
         """
         self.p_drift = 0.0
-        R = pd.DataFrame(columns=["reward", "action", "strategy"])
+        R_dfs = []
         for a in self.expected_values:
             Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
             Ra["action"] = a
             Ra["strategy"] = "uniform"
-            R = pd.concat([R, Ra])
+            R_dfs.append(Ra)
         # Also include initial EV if pdrift shifted EVs
         if self.initial_ev != self.expected_values:
             self.expected_values = deepcopy(self.initial_ev)
             for a in self.initial_ev:
-                Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
+                Ra = pd.DataFrame(
+                    self.action_value(a, shape=(n, 1)), columns=["reward"]
+                )
                 Ra["action"] = a
                 Ra["strategy"] = "uniform"
-                R = pd.concat([R, Ra])
+                R_dfs.append(Ra)
+        R = pd.concat(R_dfs)
         return R
 
     def reset_ev(self):
         self.expected_values = deepcopy(self.initial_ev)
 
     def best_action(self):
-        """Return true best action that should have been taken based on EV state
-        """
+        """Return true best action that should have been taken based on EV state"""
 
         A_best = list(self.expected_values.keys())[
             np.argmax([ev["mean"] for ev in self.expected_values.values()])
@@ -78,7 +81,9 @@ class NormalTestbed(Testbed):
     def action_value(self, action, shape=None) -> np.ndarray or float:
         """Return reward value given action"""
         if np.random.binomial(1, self.p_drift) == 1:
-            A_drift = list(self.expected_values.keys())[np.random.randint(len(self.expected_values))]
+            A_drift = list(self.expected_values.keys())[
+                np.random.randint(len(self.expected_values))
+            ]
             self.expected_values[A_drift]["mean"] = self.expected_values[A_drift][
                 "mean"
             ] + self.drift_mag * (np.random.random() - 0.5)
