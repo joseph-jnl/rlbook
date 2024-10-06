@@ -114,13 +114,20 @@ def main(cfg: DictConfig):
         )
 
     hp_testbed = OmegaConf.to_container(cfg.testbed)
-    hp = OmegaConf.to_container(cfg.bandit)
-    hp["Q_init"] = cfg.Q_init._target_
+
+    bandit_type = cfg.bandit._target_.split(".")[-1]
+    Q_init = cfg.Q_init._target_.split(".")[-1]
+    hp = {
+        (bandit_type if k == "_target_" else k): v
+        for k, v in OmegaConf.to_container(cfg.bandit).items()
+    }
+    hp["n_cpus"] = cfg.run.n_jobs
+    hp["Q_init"] = Q_init
     hp["Q_init_value"] = cfg.Q_init.q_val
     hp["p_drift"] = hp_testbed["p_drift"]
 
-    testbed = instantiate(cfg.testbed)
-    bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed))
+    testbed = instantiate(cfg.testbed, _convert_="all")
+    bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed), _convert_="all")
 
     local_logger.info(f"Running bandit: {cfg.run}")
     local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
@@ -137,9 +144,6 @@ def main(cfg: DictConfig):
         f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']]}"
     )
 
-    # bandit_type = cfg.bandit._target_.split(".")[-1]
-    # Q_init = cfg.Q_init._target_.split(".")[-1]
-
     if cfg.experiment.upload:
         tag = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
         wandb.init(project="rlbook", group="bandits", config=hp, tags=[tag])
@@ -155,6 +159,7 @@ def main(cfg: DictConfig):
         wandb.log(
             {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}
         )
+        wandb.finish()
 
 
 if __name__ == "__main__":
