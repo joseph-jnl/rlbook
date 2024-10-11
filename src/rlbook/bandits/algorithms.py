@@ -9,12 +9,8 @@ from multiprocessing import cpu_count
 from typing import Dict
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
-
-
-def init_constant(testbed, q_val=0):
-    """Set initial action value estimate as a given constant, defaults to 0"""
-    return {a: q_val for a in testbed.expected_values}
 
 
 class Bandit(metaclass=ABCMeta):
@@ -32,18 +28,19 @@ class Bandit(metaclass=ABCMeta):
             Initialized as None, and created with the run method.
         n (int):
             Current step in a run
-        Q_init (initialization function):
-            Function to use for initializing Q values, defaults to zero init
-        Q (dict):
-            Action-value estimates in format {action: reward_estimate (float), ...}
-        Na (dict):
-            Count of how many times an action has been chosen
-            {action X: action X count, ...}
+        Q_init:
+            Numpy array of initial Q values with size n matching n actions available in testbed
+        Q:
+            Numpy array of Q values with size n matching n actions available in testbed
+        Qn:
+            Length of Q array
+        Na:
+            Numpy array with count of how many times an action has been chosen
         At (int):
             Action that corresponds to the index of the selected testbed arm
     """
 
-    def __init__(self, Q_init: Dict):
+    def __init__(self, Q_init: npt.ArrayLike):
         self.columns = [
             "run",
             "step",
@@ -55,28 +52,17 @@ class Bandit(metaclass=ABCMeta):
         self.n = 1
         self.Q_init = Q_init
         self.Q = deepcopy(Q_init)
-        self.Na = {a: 0 for a in self.Q}
-        self.At = self.argmax(self.Q)
+        self.Qn = self.Q.shape[0]
+        self.Na = np.zeros((Q_init.size), dtype=int)
+        self.At = np.argmax(self.Q)
 
     def initialization(self, testbed):
         """Reinitialize bandit for a new run when running in serial or parallel"""
         testbed.reset_ev()
         self.n = 1
         self.Q = deepcopy(self.Q_init)
-        self.Na = {a: 0 for a in self.Q}
-        self.At = self.argmax(self.Q)
-
-    def argmax(self, Q):
-        """Return max estimate Q, if tie between actions, choose at random between tied actions"""
-        Q_array = np.array(list(self.Q.values()))
-        At = np.argwhere(Q_array == np.max(Q_array)).flatten().tolist()
-
-        if len(At) > 1:
-            At = np.random.choice(At)
-        else:
-            At = At[0]
-
-        return list(Q.keys())[At]
+        self.Na = np.zeros((self.Q.size), dtype=int)
+        self.At = np.argmax(self.Q)
 
     @abstractmethod
     def select_action(self, testbed):
@@ -138,7 +124,6 @@ class Bandit(metaclass=ABCMeta):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe"""
-        n_rows = self.action_values.shape[2] * self.action_values.shape[0]
         df = pd.DataFrame(
             data=self.action_values.transpose(2, 0, 1).reshape(-1, len(self.columns)),
             columns=self.columns,
@@ -171,10 +156,11 @@ class EpsilonGreedy(Bandit):
         self.alpha = alpha
 
     def select_action(self, testbed):
+        logging.debug(f"Q: {self.Q}")
         if np.random.binomial(1, self.epsilon) == 1:
-            self.At = list(self.Q.keys())[np.random.randint(len(self.Q))]
+            self.At = np.random.randint(self.Qn)
         else:
-            self.At = self.argmax(self.Q)
+            self.At = np.argmax(self.Q)
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
@@ -188,7 +174,6 @@ class EpsilonGreedy(Bandit):
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
-
         return (self.At, R, A_best)
 
     def output_df(self):

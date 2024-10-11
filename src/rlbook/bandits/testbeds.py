@@ -14,8 +14,18 @@ class Testbed(metaclass=ABCMeta):
             Dict of parameters describing the Testbed distribution
     """
 
-    def __init__(self, expected_values):
-        self.initial_ev = expected_values
+    def __init__(self, expected_values: dict):
+        self.n_actions = len(expected_values)
+        ev = {
+            "mean": np.zeros(self.n_actions),
+            "std": np.zeros(self.n_actions),
+        }
+
+        for i, a in enumerate(expected_values):
+            ev["mean"][i] = expected_values[i]["mean"]
+            ev["std"][i] = expected_values[i]["std"]
+
+        self.initial_ev = ev
         self.expected_values = deepcopy(self.initial_ev)
 
     def estimate_distribution(self, n=1000) -> pd.DataFrame:
@@ -48,9 +58,8 @@ class Testbed(metaclass=ABCMeta):
     def best_action(self):
         """Return true best action that should have been taken based on EV state"""
 
-        A_best = list(self.expected_values.keys())[
-            np.argmax([ev["mean"] for ev in self.expected_values.values()])
-        ]
+        A_best = np.argmax(self.expected_values["mean"])
+
         return A_best
 
     @abstractmethod
@@ -81,15 +90,13 @@ class NormalTestbed(Testbed):
     def action_value(self, action, shape=None) -> np.ndarray or float:
         """Return reward value given action"""
         if np.random.binomial(1, self.p_drift) == 1:
-            A_drift = list(self.expected_values.keys())[
-                np.random.randint(len(self.expected_values))
-            ]
-            self.expected_values[A_drift]["mean"] = self.expected_values[A_drift][
-                "mean"
+            A_drift = np.random.randint(self.n_actions)
+            self.expected_values["mean"][A_drift] = self.expected_values["mean"][
+                A_drift
             ] + self.drift_mag * (np.random.random() - 0.5)
 
         return np.random.normal(
-            loc=self.expected_values[action]["mean"],
-            scale=self.expected_values[action]["var"],
+            loc=self.expected_values["mean"][action],
+            scale=self.expected_values["std"][action],
             size=shape,
         )

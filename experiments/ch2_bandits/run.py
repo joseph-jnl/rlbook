@@ -6,7 +6,7 @@ import hydra
 import numpy as np
 import wandb
 from hydra.core.hydra_config import HydraConfig
-from hydra.utils import call, instantiate
+from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from plotnine import aes, geom_jitter, geom_violin, ggplot, ggtitle, theme, xlab, ylab
 
@@ -116,18 +116,22 @@ def main(cfg: DictConfig):
     hp_testbed = OmegaConf.to_container(cfg.testbed)
 
     bandit_type = cfg.bandit._target_.split(".")[-1]
-    Q_init = cfg.Q_init._target_.split(".")[-1]
+    # Q_init = cfg.Q_init._target_.split(".")[-1]
     hp = {
         (bandit_type if k == "_target_" else k): v
         for k, v in OmegaConf.to_container(cfg.bandit).items()
     }
     hp["n_cpus"] = cfg.run.n_jobs
-    hp["Q_init"] = Q_init
-    hp["Q_init_value"] = cfg.Q_init.q_val
+    # hp["Q_init"] = Q_init
+    # hp["Q_init_value"] = cfg.Q_init.q_val
     hp["p_drift"] = hp_testbed["p_drift"]
 
     testbed = instantiate(cfg.testbed, _convert_="all")
-    bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed), _convert_="all")
+    bandit = instantiate(
+        cfg.bandit,
+        Q_init=np.zeros(testbed.expected_values["mean"].size),
+        _convert_="all",
+    )
 
     local_logger.info(f"Running bandit: {cfg.run}")
     local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
