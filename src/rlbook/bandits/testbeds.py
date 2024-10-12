@@ -28,21 +28,21 @@ class Testbed(metaclass=ABCMeta):
         self.initial_ev = ev
         self.expected_values = deepcopy(self.initial_ev)
 
-    def estimate_distribution(self, n=1000) -> pd.DataFrame:
+    def estimate_distribution(self, n: int = 1000) -> pd.DataFrame:
         """Provide an estimate of the testbed values across all arms
         n (int): Number of iterations to execute in testbed
         """
         self.p_drift = 0.0
         R_dfs = []
-        for a in self.expected_values:
+        for a in range(self.n_actions):
             Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
             Ra["action"] = a
             Ra["strategy"] = "uniform"
             R_dfs.append(Ra)
         # Also include initial EV if pdrift shifted EVs
-        if self.initial_ev != self.expected_values:
+        if any(self.initial_ev["mean"] != self.expected_values["mean"]):
             self.expected_values = deepcopy(self.initial_ev)
-            for a in self.initial_ev:
+            for a in range(self.n_actions):
                 Ra = pd.DataFrame(
                     self.action_value(a, shape=(n, 1)), columns=["reward"]
                 )
@@ -82,12 +82,14 @@ class NormalTestbed(Testbed):
             Magnitude of reward change when drifting, defaults to 1.0
     """
 
-    def __init__(self, expected_values: Dict, p_drift=0.0, drift_mag=1.0):
+    def __init__(
+        self, expected_values: Dict, p_drift: float = 0.0, drift_mag: float = 1.0
+    ):
         self.p_drift = p_drift
         self.drift_mag = drift_mag
         super().__init__(expected_values)
 
-    def action_value(self, action, shape=None) -> np.ndarray or float:
+    def action_value(self, action: int, shape=None) -> np.ndarray or float:
         """Return reward value given action"""
         if np.random.binomial(1, self.p_drift) == 1:
             A_drift = np.random.randint(self.n_actions)
