@@ -156,7 +156,7 @@ class EpsilonGreedy(Bandit):
         self.alpha = alpha
 
     def select_action(self, testbed):
-        logging.debug(f"Q: {self.Q}")
+        logging.debug("Q: %s", self.Q)
         if np.random.binomial(1, self.epsilon) == 1:
             self.At = np.random.randint(self.Qn)
         else:
@@ -170,7 +170,7 @@ class EpsilonGreedy(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
@@ -228,7 +228,7 @@ class UCL(Bandit):
         self.Na = {a: 1e-100 for a in self.Na}
 
     def select_action(self, testbed):
-        logging.debug(f"Na: {self.Na}")
+        logging.debug("Na: %s", self.Na)
         self.U = {
             a: Q + self.c * sqrt(log(self.n) / self.Na[a]) for a, Q in self.Q.items()
         }
@@ -242,7 +242,7 @@ class UCL(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
@@ -313,14 +313,14 @@ class Gradient(Bandit):
         where At is action chosen
         """
         probs = self.softmax(self.H)
-        logging.debug(f"probs: {probs}")
+        logging.debug("probs: %s", probs)
         self.At = int(np.random.choice(list(self.H.keys()), 1, p=list(probs.values())))
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
         self.Na[self.At] += 1
-        logging.debug(f"H: {self.H}")
-        logging.debug(f"Q: {self.Q}")
+        logging.debug("H: %s", self.H)
+        logging.debug("Q: %s", self.Q)
         for a in self.H:
             if a == self.At:
                 self.H[a] = self.H[a] + self.lr * (R - self.Q[a]) * (1 - probs[a])
@@ -332,7 +332,7 @@ class Gradient(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
