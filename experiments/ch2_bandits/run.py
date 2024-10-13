@@ -6,55 +6,77 @@ import hydra
 import numpy as np
 import wandb
 from hydra.core.hydra_config import HydraConfig
-from hydra.utils import call, instantiate
+from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
+from plotnine import aes, geom_jitter, geom_violin, ggplot, ggtitle, theme, xlab, ylab
 
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
-def steps_violin_plotter(df_ar, testbed, run=0):
+def steps_violin_plotter(df_ar, testbed, run: int = 0):
+    """Return plot of reward distribution overlayed with
+    actions taken over a single run
+
+    Args:
+        df_ar:
+            DataFrame of actions and rewards
+        testbed:
+            A bandits.testbeds.Testbed instance
+        run:
+            An integer defining which run will have its actions overlaid
+    """
     df_estimate = testbed.estimate_distribution(1000)
     df_estimate = df_estimate.astype({"action": "int32"})
     df_ar = df_ar.loc[df_ar["run"] == run]
     df_ar = df_ar.astype({"action": "int32"})
-    # p = (
-    #     p9.ggplot(
-    #         p9.aes(
-    #             x="reorder(factor(action), action)",
-    #             y="reward",
-    #         )
-    #     )
-    #     + p9.ggtitle(f"Action - Rewards across {df_ar.shape[0]} steps")
-    #     + p9.xlab("k-arm")
-    #     + p9.ylab("Reward")
-    #     + p9.geom_violin(df_estimate, fill="#d0d3d4")
-    #     + p9.geom_jitter(df_ar, p9.aes(color="step"))
-    #     + p9.theme(figure_size=(20, 9))
-    # )
-    # fig = p.draw()
+    p = (
+        ggplot(
+            aes(
+                x="reorder(factor(action), action)",
+                y="reward",
+            )
+        )
+        + ggtitle(f"Action - Rewards across {df_ar.shape[0]} steps from Run {run}")
+        + xlab("k-arm")
+        + ylab("Reward")
+        + geom_violin(df_estimate, fill="#d0d3d4")
+        + geom_jitter(df_ar, aes(color="step"))
+        + theme(figure_size=(20, 9))
+    )
+    fig = p.draw()
 
-    # return fig
+    return fig
 
 
-def average_runs(df, group=[]):
+def average_runs(df, group=None):
     """Average all dataframe columns across runs
 
-    Attributes:
-        group (list): Additional list of columns to group by before taking the average
+    Args:
+        df:
+            DataFrame with step column
+        group (list):
+            Additional list of columns to group by before taking the average
 
     """
+    if group is None:
+        group = []
+
     return df.groupby(["step"] + group).mean().reset_index()
 
 
-def optimal_action(df, group=[]):
-    """Create new column "optimal_action_percent"
+def optimal_action(df, group=None):
+    """Calculate the percentage of runs that took the optimal action at this step,
+        creates new column "optimal_action_percent"
 
-    Attributes:
+    Args:
         group (list):
             Additional list of columns to group by before calculating percent optimal action
 
     """
+    if group is None:
+        group = []
+
     df["optimal_action_true"] = np.where(df["action"] == df["optimal_action"], 1, 0)
     df["optimal_action_percent"] = df["step"].map(
         df.groupby(["step"])["optimal_action_true"].sum() / (df["run"].max() + 1)
@@ -63,35 +85,53 @@ def optimal_action(df, group=[]):
     return df
 
 
-def write_scalars(df, session, column: str, tag: str, hp: dict):
-    """Write scalars to local using aim
+def upload(df, columns: list[str]):
+    """Upload selected columns from dataframe to remote wandb
+
+    Args:
+        df:
+            Dataframe
+        columns:
+            List of column names to log to wandb
 
     Return
-        Value of last step
+        Dict of values of last step
     """
-    df = average_runs(df)
-    df.apply(
-        lambda x: session.track(
-            x[column],
-            epoch=int(x.step),
-            name=tag,
-        ),
-        axis=1,
-    )
+    df = df[columns]
+    rows = df.to_dict(orient="records")
+    for r in rows:
+        wandb.log(r)
 
-    return df[column].iloc[-1]
+    return r
 
 
 @hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
 def main(cfg: DictConfig):
+    local_logger.info("Run in debug mode by setting hydra.verbose=true")
+    if not cfg.experiment.upload:
+        local_logger.info(
+            "wandb upload set to false, local run only. Set cfg.experiment.upload=true to track experiment"
+        )
+
     hp_testbed = OmegaConf.to_container(cfg.testbed)
-    hp = OmegaConf.to_container(cfg.bandit)
-    hp["Q_init"] = cfg.Q_init._target_
-    hp["Q_init_value"] = cfg.Q_init.q_val
+
+    bandit_type = cfg.bandit._target_.split(".")[-1]
+    # Q_init = cfg.Q_init._target_.split(".")[-1]
+    hp = {
+        (bandit_type if k == "_target_" else k): v
+        for k, v in OmegaConf.to_container(cfg.bandit).items()
+    }
+    hp["n_cpus"] = cfg.run.n_jobs
+    # hp["Q_init"] = Q_init
+    # hp["Q_init_value"] = cfg.Q_init.q_val
     hp["p_drift"] = hp_testbed["p_drift"]
 
-    testbed = instantiate(cfg.testbed)
-    bandit = instantiate(cfg.bandit, Q_init=call(cfg.Q_init, testbed))
+    testbed = instantiate(cfg.testbed, _convert_="all")
+    bandit = instantiate(
+        cfg.bandit,
+        Q_init=np.zeros(testbed.expected_values["mean"].size),
+        _convert_="all",
+    )
 
     local_logger.info(f"Running bandit: {cfg.run}")
     local_logger.debug(f"Testbed expected values: {testbed.expected_values}")
@@ -105,29 +145,25 @@ def main(cfg: DictConfig):
     df_ar = bandit.output_df()
     df_ar = optimal_action(df_ar)
     local_logger.debug(
-        f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']].head(15)}"
+        f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']]}"
     )
 
-    # bandit_type = cfg.bandit._target_.split(".")[-1]
-    # Q_init = cfg.Q_init._target_.split(".")[-1]
+    if cfg.experiment.upload:
+        tag = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
+        wandb.init(project="rlbook", group="bandits", config=hp, tags=[tag])
+        wandb.define_metric("reward", summary="last")
+        wandb.define_metric("optimal_action_percent", summary="last")
+        df_avg_ar = average_runs(df_ar)
+        upload(df_avg_ar, ["reward", "optimal_action_percent"])
 
-    final_avg_reward = write_scalars(df_ar, session, "reward", "average_reward", hp)
+        wandb.log(
+            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}
+        )
 
-    final_optimal_action = write_scalars(
-        df_ar, session, "optimal_action_percent", "optimal_action_percent", hp
-    )
-    final_metrics = {
-        "average_reward": final_avg_reward,
-        "optimal_action_percent": final_optimal_action,
-    }
-
-    local_logger.debug(f"final_metrics: {final_metrics}")
-    if cfg.upload:
-        tag = "debug" if HydraConfig.get().verbose else cfg.experiment["name"]
-        wandb.init(project="rlbook", group="bandits", tags=[tag])
-        wandb.config = hp
-        wandb.log({"duration": timedelta(seconds=run_end - run_start)})
-        wandb.log({"final_metrics": final_metrics})
+        wandb.log(
+            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}
+        )
+        wandb.finish()
 
 
 if __name__ == "__main__":

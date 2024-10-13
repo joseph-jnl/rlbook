@@ -1,55 +1,3 @@
-testbed:
-  _target_: rlbook.bandits.testbeds.NormalTestbed 
-  expected_values:
-    1: 
-     mean: 0.2
-     var: 1
-    2:
-     mean: -0.8
-     var: 1
-    3:
-     mean: 1.7
-     var: 1
-    4:
-     mean: 0.5
-     var: 1
-    5:
-     mean: 1.5
-     var: 1
-    6:
-     mean: -1.5
-     var: 1
-    7:
-     mean: -0.2
-     var: 1
-    8:
-     mean: -1.0
-     var: 1
-    9:
-     mean: 1.1
-     var: 1
-    10:
-      mean: -0.8
-      var: 1
-  p_drift: 0.0
-
-bandit:
-  _target_: rlbook.bandits.algorithms.EpsilonGreedy
-  alpha: sample_average
-
-Q_init: 
-  _target_: rlbook.bandits.algorithms.init_constant
-  q_val: 0
-
-run:
-  steps: 3
-  n_runs: 5
-  n_jobs: 8
-
-experiment:
-  name: bandit 
-  upload: false
-
 hydra:
   run:
     dir: ./outputs/bandit/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
@@ -62,3 +10,53 @@ hydra:
         exclude_keys:
           - run
           - upload
+
+testbed:
+  _target_: rlbook.bandits.testbeds.NormalTestbed 
+  expected_values:
+    0: 
+     mean: 0.2
+     std: 1
+    1:
+     mean: -0.8
+     std: 1
+    2:
+     mean: 1.7
+     std: 1
+    3:
+     mean: 0.5
+     std: 1
+    4:
+     mean: 1.5
+     std: 1
+    5:
+     mean: -1.5
+     std: 1
+    6:
+     mean: -0.2
+     std: 1
+    7:
+     mean: -1.0
+     std: 1
+    8:
+     mean: 1.1
+     std: 1
+    9:
+     mean: -0.8
+     std: 1
+  p_drift: 0.0
+
+bandit:
+  # EpsilonGreedy, UCL, Gradient
+  _target_: rlbook.bandits.algorithms.EpsilonGreedy
+  alpha: sample_average
+
+run:
+  steps: 3
+  n_runs: 5
+  n_jobs: 8
+
+experiment:
+  name: bandit 
+  tag: default
+  upload: false

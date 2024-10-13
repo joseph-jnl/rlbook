@@ -1,19 +1,16 @@
-import pandas as pd
-import numpy as np
+import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
+from itertools import repeat
+from math import log, sqrt
 from multiprocessing import cpu_count
 from typing import Dict
-import warnings
-import logging
-from itertools import repeat
-from copy import deepcopy
-from math import sqrt, log
 
-
-def init_constant(testbed, q_val=0):
-    """Set initial action value estimate as a given constant, defaults to 0"""
-    return {a: q_val for a in testbed.expected_values}
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
 
 
 class Bandit(metaclass=ABCMeta):
@@ -31,18 +28,19 @@ class Bandit(metaclass=ABCMeta):
             Initialized as None, and created with the run method.
         n (int):
             Current step in a run
-        Q_init (initialization function):
-            Function to use for initializing Q values, defaults to zero init
-        Q (dict):
-            Action-value estimates in format {action: reward_estimate (float), ...}
-        Na (dict):
-            Count of how many times an action has been chosen
-            {action X: action X count, ...}
+        Q_init:
+            Numpy array of initial Q values with size n matching n actions available in testbed
+        Q:
+            Numpy array of Q values with size n matching n actions available in testbed
+        Qn:
+            Length of Q array
+        Na:
+            Numpy array with count of how many times an action has been chosen
         At (int):
             Action that corresponds to the index of the selected testbed arm
     """
 
-    def __init__(self, Q_init: Dict):
+    def __init__(self, Q_init: npt.ArrayLike):
         self.columns = [
             "run",
             "step",
@@ -54,28 +52,17 @@ class Bandit(metaclass=ABCMeta):
         self.n = 1
         self.Q_init = Q_init
         self.Q = deepcopy(Q_init)
-        self.Na = {a: 0 for a in self.Q}
-        self.At = self.argmax(self.Q)
+        self.Qn = self.Q.shape[0]
+        self.Na = np.zeros((Q_init.size), dtype=int)
+        self.At = np.argmax(self.Q)
 
     def initialization(self, testbed):
         """Reinitialize bandit for a new run when running in serial or parallel"""
         testbed.reset_ev()
         self.n = 1
         self.Q = deepcopy(self.Q_init)
-        self.Na = {a: 0 for a in self.Q}
-        self.At = self.argmax(self.Q)
-
-    def argmax(self, Q):
-        """Return max estimate Q, if tie between actions, choose at random between tied actions"""
-        Q_array = np.array(list(self.Q.values()))
-        At = np.argwhere(Q_array == np.max(Q_array)).flatten().tolist()
-
-        if len(At) > 1:
-            At = np.random.choice(At)
-        else:
-            At = At[0]
-
-        return list(Q.keys())[At]
+        self.Na = np.zeros((self.Q.size), dtype=int)
+        self.At = np.argmax(self.Q)
 
     @abstractmethod
     def select_action(self, testbed):
@@ -137,7 +124,6 @@ class Bandit(metaclass=ABCMeta):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe"""
-        n_rows = self.action_values.shape[2] * self.action_values.shape[0]
         df = pd.DataFrame(
             data=self.action_values.transpose(2, 0, 1).reshape(-1, len(self.columns)),
             columns=self.columns,
@@ -170,10 +156,11 @@ class EpsilonGreedy(Bandit):
         self.alpha = alpha
 
     def select_action(self, testbed):
+        logging.debug("Q: %s", self.Q)
         if np.random.binomial(1, self.epsilon) == 1:
-            self.At = list(self.Q.keys())[np.random.randint(len(self.Q))]
+            self.At = np.random.randint(self.Qn)
         else:
-            self.At = self.argmax(self.Q)
+            self.At = np.argmax(self.Q)
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
@@ -183,11 +170,10 @@ class EpsilonGreedy(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
-
         return (self.At, R, A_best)
 
     def output_df(self):
@@ -204,12 +190,12 @@ class UCL(Bandit):
     """Upper Confidence Limit bandit
     Estimate an upper bound for a given action that includes a measure of uncertainty
     based on how often the action has been chosen in the past
-    
+
     At  = argmax( Qt(a) + c * sqrt(ln(t)/Nt(a)))
-    
+
     Sqrt term is a measure of variance of an action's Upper Bound
     The more often an action is selected, the uncertainty decreases (denominator increases)
-    When another action is selected, 
+    When another action is selected,
     the uncertainty increases (the numerator since time increase, but in smaller increments due to the ln)
 
     Attributes:
@@ -227,10 +213,9 @@ class UCL(Bandit):
     """
 
     def __init__(self, Q_init: Dict, c=0.1, alpha=0.1):
-        """
-        """
+        """ """
         super().__init__(Q_init)
-        self.c = c 
+        self.c = c
         # Initialize self.Na as 1e-100 number instead of 0
         self.Na = {a: 1e-100 for a in self.Na}
         self.alpha = alpha
@@ -243,8 +228,10 @@ class UCL(Bandit):
         self.Na = {a: 1e-100 for a in self.Na}
 
     def select_action(self, testbed):
-        logging.debug(f"Na: {self.Na}")
-        self.U = {a: Q + self.c * sqrt(log(self.n)/self.Na[a]) for a, Q in self.Q.items()}
+        logging.debug("Na: %s", self.Na)
+        self.U = {
+            a: Q + self.c * sqrt(log(self.n) / self.Na[a]) for a, Q in self.Q.items()
+        }
         self.At = self.argmax(self.U)
 
         A_best = testbed.best_action()
@@ -255,7 +242,7 @@ class UCL(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
@@ -264,7 +251,7 @@ class UCL(Bandit):
 
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
-        Add c coefficient used for UCL 
+        Add c coefficient used for UCL
         """
         df = super().output_df()
         df["c"] = self.c
@@ -276,10 +263,10 @@ class Gradient(Bandit):
     """Gradient bandit
     Learn a set of numerical preferences "H" rather than estimate a set of action values "Q"
     H preferences are all relative to each other, no correlation to a potential reward
-    
-    Update H using: 
+
+    Update H using:
     Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
-    Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+    Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At
     where At is action chosen
 
     Attributes:
@@ -297,10 +284,9 @@ class Gradient(Bandit):
     """
 
     def __init__(self, Q_init: Dict, lr=0.1, alpha=0.1):
-        """
-        """
+        """ """
         super().__init__(Q_init)
-        self.lr = lr 
+        self.lr = lr
         self.alpha = alpha
         self.H = deepcopy(self.Q_init)
 
@@ -313,10 +299,9 @@ class Gradient(Bandit):
         self.Na = {a: 0 for a in self.Q}
 
     def softmax(self, H):
-        h = np.array([val for val in H.values()]) 
-        probs = np.exp(h)/sum(np.exp(h))
+        h = np.array([val for val in H.values()])
+        probs = np.exp(h) / sum(np.exp(h))
         return dict(zip(H.keys(), probs))
-
 
     def select_action(self, testbed):
         """
@@ -324,18 +309,18 @@ class Gradient(Bandit):
 
         Then update H via:
         Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
-        Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At 
+        Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At
         where At is action chosen
         """
         probs = self.softmax(self.H)
-        logging.debug(f"probs: {probs}")
+        logging.debug("probs: %s", probs)
         self.At = int(np.random.choice(list(self.H.keys()), 1, p=list(probs.values())))
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
         self.Na[self.At] += 1
-        logging.debug(f"H: {self.H}")
-        logging.debug(f"Q: {self.Q}")
+        logging.debug("H: %s", self.H)
+        logging.debug("Q: %s", self.Q)
         for a in self.H:
             if a == self.At:
                 self.H[a] = self.H[a] + self.lr * (R - self.Q[a]) * (1 - probs[a])
@@ -347,17 +332,16 @@ class Gradient(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug(f"alpha: {self.alpha}, At: {self.At}, R: {R}")
+            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
 
         return (self.At, R, A_best)
 
-
     def output_df(self):
         """Reshape action_values numpy array and output as pandas dataframe
-        Add learning rate 
+        Add learning rate
         """
         df = super().output_df()
         df["lr"] = self.lr
