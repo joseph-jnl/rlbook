@@ -10,7 +10,6 @@ from typing import Dict
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 
 
 class Bandit(metaclass=ABCMeta):
@@ -123,14 +122,13 @@ class Bandit(metaclass=ABCMeta):
             )
         return np.squeeze(np.stack(list(action_values), axis=2))
 
-    def output_df(self):
-        """Reshape action_values numpy array and output as pandas dataframe"""
-        df = pd.DataFrame(
-            data=self.action_values.transpose(2, 0, 1).reshape(-1, len(self.columns)),
-            columns=self.columns,
-        )
+    def output_av(self) -> tuple[npt.ArrayLike, list[str]]:
+        """Output action_values numpy array reshaped from 3D to 2D and columns names"""
 
-        return df
+        return (
+            self.action_values.transpose(2, 0, 1).reshape(-1, len(self.columns)),
+            self.columns,
+        )
 
 
 class EpsilonGreedy(Bandit):
@@ -177,14 +175,14 @@ class EpsilonGreedy(Bandit):
         self.n += 1
         return (self.At, R, A_best)
 
-    def output_df(self):
-        """Reshape action_values numpy array and output as pandas dataframe
-        Add epsilon coefficient used for greedy bandit
-        """
-        df = super().output_df()
-        df["epsilon"] = self.epsilon
+    def output_av(self):
+        """Output action_values numpy array reshaped from 3D to 2D and columns names"""
+        arr, cols = super().output_av()
+        epsilon = np.ones((arr.shape[0], 1)) * self.epsilon 
+        arr_stacked = np.column_stack((arr, epsilon))
+        cols.append("epsilon")
 
-        return df
+        return arr_stacked, cols
 
 
 class UCL(Bandit):
@@ -250,11 +248,9 @@ class UCL(Bandit):
 
         return (self.At, R, A_best)
 
-    def output_df(self):
-        """Reshape action_values numpy array and output as pandas dataframe
-        Add c coefficient used for UCL
-        """
-        df = super().output_df()
+    def output_av(self):
+        """Output action_values numpy array reshaped from 3D to 2D and columns names"""
+        df = super().output_av()
         df["c"] = self.c
 
         return df
@@ -340,11 +336,9 @@ class Gradient(Bandit):
 
         return (self.At, R, A_best)
 
-    def output_df(self):
-        """Reshape action_values numpy array and output as pandas dataframe
-        Add learning rate
-        """
-        df = super().output_df()
+    def output_av(self):
+        """Output action_values numpy array reshaped from 3D to 2D and columns names"""
+        df = super().output_av()
         df["lr"] = self.lr
 
         return df

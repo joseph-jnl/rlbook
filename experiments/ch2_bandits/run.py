@@ -1,9 +1,11 @@
 import logging
 import time
 from datetime import timedelta
+from copy import deepcopy
 
 import hydra
 import numpy as np
+import pandas as pd
 import wandb
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
@@ -13,6 +15,31 @@ from plotnine import aes, geom_jitter, geom_violin, ggplot, ggtitle, theme, xlab
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+
+
+def estimate_distribution(testbed, n: int = 1000) -> pd.DataFrame:
+    """Provide an estimate of the testbed values across all arms
+    n (int): Number of iterations to execute in testbed
+    """
+    testbed.p_drift = 0.0
+    R_dfs = []
+    for a in range(testbed.n_actions):
+        Ra = pd.DataFrame(testbed.action_value(a, shape=(n, 1)), columns=["reward"])
+        Ra["action"] = a
+        Ra["strategy"] = "uniform"
+        R_dfs.append(Ra)
+    # Also include initial EV if pdrift shifted EVs
+    if any(testbed.initial_ev["mean"] != testbed.expected_values["mean"]):
+        testbed.expected_values = deepcopy(testbed.initial_ev)
+        for a in range(testbed.n_actions):
+            Ra = pd.DataFrame(
+                testbed.action_value(a, shape=(n, 1)), columns=["reward"]
+            )
+            Ra["action"] = a
+            Ra["strategy"] = "uniform"
+            R_dfs.append(Ra)
+    R = pd.concat(R_dfs)
+    return R
 
 def steps_violin_plotter(df_ar, testbed, run: int = 0):
     """Return plot of reward distribution overlayed with
@@ -26,7 +53,7 @@ def steps_violin_plotter(df_ar, testbed, run: int = 0):
         run:
             An integer defining which run will have its actions overlaid
     """
-    df_estimate = testbed.estimate_distribution(1000)
+    df_estimate = estimate_distribution(testbed, 1000)
     df_estimate = df_estimate.astype({"action": "int32"})
     df_ar = df_ar.loc[df_ar["run"] == run]
     df_ar = df_ar.astype({"action": "int32"})
@@ -141,8 +168,8 @@ def main(cfg: DictConfig):
     run_start = time.monotonic()
     bandit.run(testbed, **OmegaConf.to_container(cfg.run))
     run_end = time.monotonic()
-
-    df_ar = bandit.output_df()
+    arr, cols = bandit.output_av()
+    df_ar = pd.DataFrame(arr, columns=cols)
     df_ar = optimal_action(df_ar)
     local_logger.debug(
         f"\n{df_ar[['run', 'step', 'action', 'optimal_action', 'reward']]}"

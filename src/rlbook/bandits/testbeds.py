@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import Dict
 
 import numpy as np
-import pandas as pd
 
 
 class Testbed(metaclass=ABCMeta):
@@ -27,30 +26,6 @@ class Testbed(metaclass=ABCMeta):
 
         self.initial_ev = ev
         self.expected_values = deepcopy(self.initial_ev)
-
-    def estimate_distribution(self, n: int = 1000) -> pd.DataFrame:
-        """Provide an estimate of the testbed values across all arms
-        n (int): Number of iterations to execute in testbed
-        """
-        self.p_drift = 0.0
-        R_dfs = []
-        for a in range(self.n_actions):
-            Ra = pd.DataFrame(self.action_value(a, shape=(n, 1)), columns=["reward"])
-            Ra["action"] = a
-            Ra["strategy"] = "uniform"
-            R_dfs.append(Ra)
-        # Also include initial EV if pdrift shifted EVs
-        if any(self.initial_ev["mean"] != self.expected_values["mean"]):
-            self.expected_values = deepcopy(self.initial_ev)
-            for a in range(self.n_actions):
-                Ra = pd.DataFrame(
-                    self.action_value(a, shape=(n, 1)), columns=["reward"]
-                )
-                Ra["action"] = a
-                Ra["strategy"] = "uniform"
-                R_dfs.append(Ra)
-        R = pd.concat(R_dfs)
-        return R
 
     def reset_ev(self):
         self.expected_values = deepcopy(self.initial_ev)

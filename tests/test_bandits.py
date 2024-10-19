@@ -1,18 +1,17 @@
 """Tests for `rlbook.bandits` package."""
 
+import numpy as np
 import pytest
 
-from pandas.testing import assert_series_equal
-
-from rlbook.bandits import EpsilonGreedy, init_constant
+from rlbook.bandits.algorithms import EpsilonGreedy
 from rlbook.bandits.testbeds import NormalTestbed
 
 EXPECTED_VALUES = {
-    1: {"mean": 2, "var": 1},
-    2: {"mean": -1, "var": 1},
-    3: {"mean": 1, "var": 1},
-    4: {"mean": 0, "var": 1},
-    5: {"mean": 1.7, "var": 1},
+    0: {"mean": 2, "std": 1},
+    1: {"mean": -1, "std": 1},
+    2: {"mean": 1, "std": 1},
+    3: {"mean": 0, "std": 1},
+    4: {"mean": 1.7, "std": 1},
 }
 
 
@@ -23,24 +22,14 @@ def testbed_fixed():
 
 @pytest.fixture
 def egreedy_bandit(testbed_fixed):
-    return EpsilonGreedy(init_constant(testbed_fixed, q_val=10), epsilon=0.2)
+    return EpsilonGreedy(np.zeros(testbed_fixed.expected_values["mean"].size))
 
 
 def test_multirun_bandit_randomness(egreedy_bandit, testbed_fixed):
     """Test that parallel runs are using different random seeds resulting in different actions"""
 
     egreedy_bandit.run(testbed_fixed, 20, n_runs=20, n_jobs=4)
-    df = egreedy_bandit.output_df()
+    av = egreedy_bandit.output_av()[0]
 
-    # Pivot results:
-    # run   0 1 2 3
-    # step
-    #  0    a a a a
-    #  1    a a a a
-    #  2    a a a a
-    # where a = action taken
-    actions_by_run = df[["run", "step", "action"]].pivot(
-        index="step", columns=["run"], values="action"
-    )
-
-    assert not all(actions_by_run[0].eq(actions_by_run[1]))
+    with np.testing.assert_raises(AssertionError):
+        np.testing.assert_array_equal(av[0:20, 2], av[20:40, 2])
