@@ -2,17 +2,17 @@
 
 import pytest
 
-from pandas.testing import assert_series_equal
+import numpy as np
 
-from rlbook.bandits import EpsilonGreedy, init_constant
+from rlbook.bandits.algorithms import EpsilonGreedy
 from rlbook.bandits.testbeds import NormalTestbed
 
 EXPECTED_VALUES = {
-    1: {"mean": 2, "var": 1},
-    2: {"mean": -1, "var": 1},
-    3: {"mean": 1, "var": 1},
-    4: {"mean": 0, "var": 1},
-    5: {"mean": 1.7, "var": 1},
+    0: {"mean": 2, "std": 1},
+    1: {"mean": -1, "std": 1},
+    2: {"mean": 1, "std": 1},
+    3: {"mean": 0, "std": 1},
+    4: {"mean": 1.7, "std": 1},
 }
 
 
@@ -23,7 +23,7 @@ def testbed_fixed():
 
 @pytest.fixture
 def egreedy_bandit(testbed_fixed):
-    return EpsilonGreedy(init_constant(testbed_fixed, q_val=10), epsilon=0.2)
+    return EpsilonGreedy(np.zeros(testbed_fixed.expected_values["mean"].size))
 
 
 def test_multirun_bandit_randomness(egreedy_bandit, testbed_fixed):
