@@ -116,3 +116,8 @@ ENV/
 
 #experiment local outputs
 experiments/ch2_bandits/outputs/
+experiments/ch2_bandits/wandb/
+
+# profiler artifacts
+*.svg
+*.perf

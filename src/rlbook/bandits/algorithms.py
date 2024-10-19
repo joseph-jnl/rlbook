@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 from itertools import repeat
-from math import log, sqrt
+from math import ceil, log, sqrt
 from multiprocessing import cpu_count
 from typing import Dict
 
@@ -119,6 +119,7 @@ class Bandit(metaclass=ABCMeta):
                 repeat(testbed, n_runs),
                 [steps for n in range(n_runs)],
                 list(range(n_runs)),
+                chunksize=ceil(n_runs / n_jobs),
             )
         return np.squeeze(np.stack(list(action_values), axis=2))
 

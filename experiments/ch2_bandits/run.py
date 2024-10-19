@@ -118,7 +118,7 @@ def main(cfg: DictConfig):
     bandit_type = cfg.bandit._target_.split(".")[-1]
     # Q_init = cfg.Q_init._target_.split(".")[-1]
     hp = {
-        (bandit_type if k == "_target_" else k): v
+        ("class" if k == "_target_" else k): (bandit_type if k == "_target_" else v)
         for k, v in OmegaConf.to_container(cfg.bandit).items()
     }
     hp["n_cpus"] = cfg.run.n_jobs
@@ -149,8 +149,8 @@ def main(cfg: DictConfig):
     )
 
     if cfg.experiment.upload:
-        tag = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
-        wandb.init(project="rlbook", group="bandits", config=hp, tags=[tag])
+        hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
+        wandb.init(project="rlbook", group="bandits", config=hp, tags=[hp["tag"]])
         wandb.define_metric("reward", summary="last")
         wandb.define_metric("optimal_action_percent", summary="last")
         df_avg_ar = average_runs(df_ar)
