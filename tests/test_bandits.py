@@ -1,8 +1,7 @@
 """Tests for `rlbook.bandits` package."""
 
-import pytest
-
 import numpy as np
+import pytest
 
 from rlbook.bandits.algorithms import EpsilonGreedy
 from rlbook.bandits.testbeds import NormalTestbed
@@ -30,17 +29,7 @@ def test_multirun_bandit_randomness(egreedy_bandit, testbed_fixed):
     """Test that parallel runs are using different random seeds resulting in different actions"""
 
     egreedy_bandit.run(testbed_fixed, 20, n_runs=20, n_jobs=4)
-    df = egreedy_bandit.output_df()
+    av = egreedy_bandit.output_av()[0]
 
-    # Pivot results:
-    # run   0 1 2 3
-    # step
-    #  0    a a a a
-    #  1    a a a a
-    #  2    a a a a
-    # where a = action taken
-    actions_by_run = df[["run", "step", "action"]].pivot(
-        index="step", columns=["run"], values="action"
-    )
-
-    assert not all(actions_by_run[0].eq(actions_by_run[1]))
+    with np.testing.assert_raises(AssertionError):
+        np.testing.assert_array_equal(av[0:20, 2], av[20:40, 2])
