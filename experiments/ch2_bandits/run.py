@@ -1,7 +1,7 @@
 import logging
 import time
-from datetime import timedelta
 from copy import deepcopy
+from datetime import timedelta
 
 import hydra
 import numpy as np
@@ -14,7 +14,6 @@ from plotnine import aes, geom_jitter, geom_violin, ggplot, ggtitle, theme, xlab
 
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
-
 
 
 def estimate_distribution(testbed, n: int = 1000) -> pd.DataFrame:
@@ -32,14 +31,13 @@ def estimate_distribution(testbed, n: int = 1000) -> pd.DataFrame:
     if any(testbed.initial_ev["mean"] != testbed.expected_values["mean"]):
         testbed.expected_values = deepcopy(testbed.initial_ev)
         for a in range(testbed.n_actions):
-            Ra = pd.DataFrame(
-                testbed.action_value(a, shape=(n, 1)), columns=["reward"]
-            )
+            Ra = pd.DataFrame(testbed.action_value(a, shape=(n, 1)), columns=["reward"])
             Ra["action"] = a
             Ra["strategy"] = "uniform"
             R_dfs.append(Ra)
     R = pd.concat(R_dfs)
     return R
+
 
 def steps_violin_plotter(df_ar, testbed, run: int = 0):
     """Return plot of reward distribution overlayed with
@@ -177,7 +175,13 @@ def main(cfg: DictConfig):
 
     if cfg.experiment.upload:
         hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
-        wandb.init(project="rlbook", group="bandits", config=hp, tags=[hp["tag"]])
+        wandb.init(
+            project="rlbook",
+            dir="./logs/",
+            group="bandits",
+            config=hp,
+            tags=[hp["tag"]],
+        )
         wandb.define_metric("reward", summary="last")
         wandb.define_metric("optimal_action_percent", summary="last")
         df_avg_ar = average_runs(df_ar)

@@ -1,8 +1,8 @@
 hydra:
   run:
-    dir: ./outputs/bandit/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+    dir: ./logs/hydra/${bandit._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
   sweep:
-    dir: ./outputs/bandit/hydra/${bandit._target_}
+    dir: ./logs/hydra/${bandit._target_}
     subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
   job:
     config:
