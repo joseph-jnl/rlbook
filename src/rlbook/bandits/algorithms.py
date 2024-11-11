@@ -27,19 +27,23 @@ class Bandit(metaclass=ABCMeta):
             Initialized as None, and created with the run method.
         n (int):
             Current step in a run
-        Q_init:
+        Q_init (numpy array):
             Numpy array of initial Q values with size n matching n actions available in testbed
-        Q:
+        Q (numpy array):
             Numpy array of Q values with size n matching n actions available in testbed
-        Qn:
-            Length of Q array
-        Na:
+        Qn (int):
+           Length of Q array
+        Na (numpy array):
             Numpy array with count of how many times an action has been chosen
         At (int):
             Action that corresponds to the index of the selected testbed arm
+        random_argmax (bool):
+            Boolean configuring whether to use argmax implementation that will choose
+            randomly between tied Q values for tiebreakers rather than first occurence.
+            Defaults to false.
     """
 
-    def __init__(self, Q_init: npt.ArrayLike):
+    def __init__(self, Q_init: npt.ArrayLike, random_argmax: bool = False):
         self.columns = [
             "run",
             "step",
@@ -47,13 +51,13 @@ class Bandit(metaclass=ABCMeta):
             "reward",
             "optimal_action",
         ]
-        self.action_values = None
-        self.n = 1
         self.Q_init = Q_init
         self.Q = deepcopy(Q_init)
         self.Qn = self.Q.shape[0]
         self.Na = np.zeros((Q_init.size), dtype=int)
-        self.At = np.argmax(self.Q)
+        self.At = 0
+        self.action_values = None
+        self.n = 1
 
     def initialization(self, testbed):
         """Reinitialize bandit for a new run when running in serial or parallel"""
@@ -61,14 +65,27 @@ class Bandit(metaclass=ABCMeta):
         self.n = 1
         self.Q = deepcopy(self.Q_init)
         self.Na = np.zeros((self.Q.size), dtype=int)
-        self.At = np.argmax(self.Q)
+        self.At = 0
 
     @abstractmethod
     def select_action(self, testbed):
         """Select action logic"""
         pass
 
-    def run(self, testbed, steps, n_runs=1, n_jobs=4, serial=False):
+    def rargmax(self, a: npt.ArrayLike):
+        """Argmax implementation that chooses randomly between multiple tied
+        max values rather than first occurence
+        """
+        return np.random.choice(np.where(a == a.max())[0])
+
+    def run(
+        self,
+        testbed,
+        steps: int,
+        n_runs: int = 1,
+        n_jobs: int = 4,
+        serial: bool = False,
+    ):
         """Run bandit for specified number of steps and optionally multiple runs"""
 
         if serial:
@@ -149,15 +166,24 @@ class EpsilonGreedy(Bandit):
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
     """
 
-    def __init__(self, Q_init: Dict, epsilon=0.1, alpha=0.1):
+    def __init__(
+        self,
+        Q_init: Dict,
+        epsilon: float = 0.1,
+        alpha: float = 0.1,
+        random_argmax=False,
+    ):
         super().__init__(Q_init)
         self.epsilon = epsilon
         self.alpha = alpha
+        self.random_argmax = random_argmax
 
     def select_action(self, testbed):
         logging.debug("Q: %s", self.Q)
         if np.random.binomial(1, self.epsilon) == 1:
             self.At = np.random.randint(self.Qn)
+        elif self.random_argmax:
+            self.At = self.rargmax(self.Q)
         else:
             self.At = np.argmax(self.Q)
 
@@ -178,7 +204,7 @@ class EpsilonGreedy(Bandit):
     def output_av(self):
         """Output action_values numpy array reshaped from 3D to 2D and columns names"""
         arr, cols = super().output_av()
-        epsilon = np.ones((arr.shape[0], 1)) * self.epsilon 
+        epsilon = np.ones((arr.shape[0], 1)) * self.epsilon
         arr_stacked = np.column_stack((arr, epsilon))
         cols.append("epsilon")
 

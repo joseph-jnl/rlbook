@@ -115,8 +115,8 @@ ENV/
 .hydra/
 
 #experiment local outputs
-experiments/ch2_bandits/outputs/
-experiments/ch2_bandits/wandb/
+experiments/ch2_bandits/logs/
+experiments/ch2_bandits/notebooks/prototype*
 
 # profiler artifacts
 *.svg
