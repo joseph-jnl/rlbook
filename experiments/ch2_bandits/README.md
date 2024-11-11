@@ -15,7 +15,7 @@ normal distribution, as suggested by these gray distributions.
 <br/>
 
 ![image](https://github.com/user-attachments/assets/fc381cad-4682-41ea-a156-111e4f8904d8)  
-Figure 2.1 (rlbook): The testbed used for this experiment used similar normal distributions with recreated means and unit variance as the Sutton & Barto example. Also provided are the actions and rewards across steps for a single run- notice how exploration increases with epsilon. ![Link to wandb artifact.](https://wandb.ai/josephjnl/rlbook/reports/Reward-Distribution-24-11-10-21-43-58---VmlldzoxMDExMzQwOQ?accessToken=sbrnp8aoxsj042cih0e6g8l4zdat994qf6vu5fttvdlff4ahzqlwqlnj52w0k5v4)
+Figure 2.1 (rlbook): The testbed used for this experiment used similar normal distributions with recreated means and unit variance as the Sutton & Barto example. Also provided are the actions and rewards across steps for a single run- notice how exploration increases with epsilon. [Link to wandb artifact.](https://wandb.ai/josephjnl/rlbook/reports/Reward-Distribution-24-11-10-21-43-58---VmlldzoxMDExMzQwOQ?accessToken=sbrnp8aoxsj042cih0e6g8l4zdat994qf6vu5fttvdlff4ahzqlwqlnj52w0k5v4)
 
 ***
 
@@ -29,4 +29,4 @@ averages as their action-value estimates.
 ![image](https://github.com/user-attachments/assets/b6be1da5-7f4e-418e-97f2-fa2fc71c2751)
 ![image](https://github.com/user-attachments/assets/f52d3095-4564-44d9-8922-8effa544d0e4)  
 Figure 2.2 (rlbook): The `+bandit.random_argmax=true` flag was used to switch over to an argmax implementation that randomizes between tiebreakers rather than first occurence used in the default numpy implementation to better align with the original example. 
-![Link to wandb artifact.](https://wandb.ai/josephjnl/rlbook/reports/optimal_action_percent-24-11-10-21-37-29---VmlldzoxMDExMzMyNQ?accessToken=1no1kyyrf8rihkbek12v8z85kjmti2z2onb0yayo208l5715zf6p9r06t7eiq8tt)
+[Link to wandb artifact.](https://wandb.ai/josephjnl/rlbook/reports/optimal_action_percent-24-11-10-21-37-29---VmlldzoxMDExMzMyNQ)
