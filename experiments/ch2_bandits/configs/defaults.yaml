@@ -50,11 +50,12 @@ bandit:
   # EpsilonGreedy, UCL, Gradient
   _target_: rlbook.bandits.algorithms.EpsilonGreedy
   alpha: sample_average
+  Q_init: 0
 
 run:
-  steps: 3
-  n_runs: 5
-  n_jobs: 8
+  steps: 100
+  n_runs: 10
+  n_jobs: 5
 
 experiment:
   name: bandit 

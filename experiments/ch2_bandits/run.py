@@ -135,26 +135,25 @@ def main(cfg: DictConfig):
     local_logger.info("Run in debug mode by setting hydra.verbose=true")
     if not cfg.experiment.upload:
         local_logger.info(
-            "wandb upload set to false, local run only. Set cfg.experiment.upload=true to track experiment"
+            "wandb upload set to false, local run only. Set experiment.upload=true to track experiment"
         )
 
     hp_testbed = OmegaConf.to_container(cfg.testbed)
 
     bandit_type = cfg.bandit._target_.split(".")[-1]
-    # Q_init = cfg.Q_init._target_.split(".")[-1]
+    Q_init = cfg.bandit.Q_init
     hp = {
         ("class" if k == "_target_" else k): (bandit_type if k == "_target_" else v)
         for k, v in OmegaConf.to_container(cfg.bandit).items()
     }
     hp["n_cpus"] = cfg.run.n_jobs
-    # hp["Q_init"] = Q_init
-    # hp["Q_init_value"] = cfg.Q_init.q_val
+    hp["Q_init_value"] = Q_init
     hp["p_drift"] = hp_testbed["p_drift"]
 
     testbed = instantiate(cfg.testbed, _convert_="all")
     bandit = instantiate(
         cfg.bandit,
-        Q_init=np.zeros(testbed.expected_values["mean"].size),
+        Q_init=Q_init*np.ones(testbed.expected_values["mean"].size),
         _convert_="all",
     )
 
@@ -188,11 +187,11 @@ def main(cfg: DictConfig):
         upload(df_avg_ar, ["reward", "optimal_action_percent"])
 
         wandb.log(
-            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}
+            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}, commit=False
         )
 
         wandb.log(
-            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}
+            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}, commit=False
         )
         wandb.finish()
 
