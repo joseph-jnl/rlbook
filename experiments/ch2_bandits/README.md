@@ -1,6 +1,6 @@
 # Chapter 2 - Multi-armed Bandits
 
-Recreate using the following commnad:
+Recreate the following experiments using the cli command below:
 ```bash
 python run.py -m run.steps=1000 run.n_runs=2000 +bandit.epsilon=0,0.01,0.1 +bandit.random_argmax=true experiment.tag=fig2.2 experiment.upload=true
 ```  
