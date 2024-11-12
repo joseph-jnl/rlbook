@@ -210,8 +210,8 @@ class EpsilonGreedy(Bandit):
         return arr_stacked, cols
 
 
-class UCL(Bandit):
-    """Upper Confidence Limit bandit
+class UCB(Bandit):
+    """Upper Confidence Bound bandit
     Estimate an upper bound for a given action that includes a measure of uncertainty
     based on how often the action has been chosen in the past
 
