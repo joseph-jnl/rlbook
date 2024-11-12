@@ -51,6 +51,7 @@ class Bandit(metaclass=ABCMeta):
             "reward",
             "optimal_action",
         ]
+        self.random_argmax = random_argmax
         self.Q_init = Q_init
         self.Q = deepcopy(Q_init)
         self.Qn = self.Q.shape[0]
@@ -171,12 +172,10 @@ class EpsilonGreedy(Bandit):
         Q_init: Dict,
         epsilon: float = 0.1,
         alpha: float = 0.1,
-        random_argmax=False,
     ):
         super().__init__(Q_init)
         self.epsilon = epsilon
         self.alpha = alpha
-        self.random_argmax = random_argmax
 
     def select_action(self, testbed):
         logging.debug("Q: %s", self.Q)
@@ -241,23 +240,29 @@ class UCL(Bandit):
         """ """
         super().__init__(Q_init)
         self.c = c
-        # Initialize self.Na as 1e-100 number instead of 0
-        self.Na = {a: 1e-100 for a in self.Na}
         self.alpha = alpha
+
+        # Initialize self.Na as 1e-100 number instead of 0
+        self.Na = np.ones(self.Na.size) * 1e-100
 
     def initialization(self, testbed):
         """Reinitialize bandit attributes for a new run"""
         testbed.reset_ev()
         self.n = 1
         self.Q = deepcopy(self.Q_init)
-        self.Na = {a: 1e-100 for a in self.Na}
+
+        # Initialize self.Na as 1e-100 number instead of 0
+        self.Na = np.ones(self.Na.size) * 1e-100
 
     def select_action(self, testbed):
         logging.debug("Na: %s", self.Na)
-        self.U = {
-            a: Q + self.c * sqrt(log(self.n) / self.Na[a]) for a, Q in self.Q.items()
-        }
-        self.At = self.argmax(self.U)
+        self.U = self.Q + self.c * np.sqrt(np.log(self.n) / self.Na)
+        logging.debug("U: %s", self.U)
+
+        if self.random_argmax:
+            self.At = self.rargmax(self.U)
+        else:
+            self.At = np.argmax(self.U)
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
@@ -270,16 +275,19 @@ class UCL(Bandit):
             logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
+        logging.debug("Q: %s", self.Q)
         self.n += 1
 
         return (self.At, R, A_best)
 
     def output_av(self):
         """Output action_values numpy array reshaped from 3D to 2D and columns names"""
-        df = super().output_av()
-        df["c"] = self.c
+        arr, cols = super().output_av()
+        c = np.ones((arr.shape[0], 1)) * self.c
+        arr_stacked = np.column_stack((arr, c))
+        cols.append("c")
 
-        return df
+        return arr_stacked, cols
 
 
 class Gradient(Bandit):
