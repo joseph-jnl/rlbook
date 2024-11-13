@@ -224,7 +224,7 @@ class UCB(Bandit):
 
     Attributes:
         c (float):
-            c > 0 controls the degree of exploration, specifically the confidence level of a UCL for a given action
+            c > 0 controls the degree of exploration, specifically the confidence level of a UCB for a given action
         U (dict):
             Action-value uncertainty estimate in format {action: uncertainty (float), ...}
         alpha (float or "sample_average"):
@@ -320,6 +320,7 @@ class Gradient(Bandit):
         self.lr = lr
         self.alpha = alpha
         self.H = deepcopy(self.Q_init)
+        self.An = self.H.size
 
     def initialization(self, testbed):
         """Reinitialize bandit attributes for a new run"""
@@ -327,12 +328,10 @@ class Gradient(Bandit):
         self.n = 1
         self.H = deepcopy(self.Q_init)
         self.Q = deepcopy(self.Q_init)
-        self.Na = {a: 0 for a in self.Q}
+        self.Na = np.zeros((self.Q.size), dtype=int)
 
     def softmax(self, H):
-        h = np.array([val for val in H.values()])
-        probs = np.exp(h) / sum(np.exp(h))
-        return dict(zip(H.keys(), probs))
+        return np.exp(H) / sum(np.exp(H))
 
     def select_action(self, testbed):
         """
@@ -344,19 +343,19 @@ class Gradient(Bandit):
         where At is action chosen
         """
         probs = self.softmax(self.H)
-        logging.debug("probs: %s", probs)
-        self.At = int(np.random.choice(list(self.H.keys()), 1, p=list(probs.values())))
+        self.At = np.random.choice(self.An, p=probs)
 
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
         self.Na[self.At] += 1
+        H = self.H - self.lr * (R - self.Q) * probs
+        H[self.At] = self.H[self.At] + self.lr * (R - self.Q[self.At]) * (1 - probs[self.At])
+        self.H = H
+
+
+        logging.debug("probs: %s", probs)
         logging.debug("H: %s", self.H)
         logging.debug("Q: %s", self.Q)
-        for a in self.H:
-            if a == self.At:
-                self.H[a] = self.H[a] + self.lr * (R - self.Q[a]) * (1 - probs[a])
-            else:
-                self.H[a] = self.H[a] - self.lr * (R - self.Q[a]) * (probs[a])
 
         if self.alpha == "sample_average":
             self.Q[self.At] = self.Q[self.At] + 1 / self.Na[self.At] * (
@@ -372,7 +371,9 @@ class Gradient(Bandit):
 
     def output_av(self):
         """Output action_values numpy array reshaped from 3D to 2D and columns names"""
-        df = super().output_av()
-        df["lr"] = self.lr
+        arr, cols = super().output_av()
+        lr = np.ones((arr.shape[0], 1)) * self.lr
+        arr_stacked = np.column_stack((arr, lr))
+        cols.append("lr")
 
-        return df
+        return arr_stacked, cols

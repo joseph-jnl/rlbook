@@ -55,7 +55,7 @@ bandit:
 run:
   steps: 100
   n_runs: 10
-  n_jobs: 5
+  n_jobs: 6
 
 experiment:
   name: bandit 
