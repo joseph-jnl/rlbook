@@ -327,15 +327,18 @@ class Gradient(Bandit):
             Note on varying step sizes such as using 1/n "sample_average":
                 self.Q[self.At] = self.Q[self.At] + 1/self.Na[self.At]*(R-self.Q[self.At])
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
+        disable_baseline (bool): 
+            Disable rewards baseline when calculating H, note that Q[At] is substituted for Pi.
     """
 
-    def __init__(self, Q_init: Dict, lr:float=0.1, alpha:float=0.1):
+    def __init__(self, Q_init: Dict, lr:float=0.1, alpha:float=0.1, disable_baseline:bool=False):
         """ """
         super().__init__(Q_init)
         self.lr = lr
         self.alpha = alpha
         self.H = deepcopy(self.Q_init)
         self.An = self.H.size
+        self.disable_baseline = disable_baseline
 
     def _reinit(self, testbed):
         """Reinitialize bandit attributes for a new run"""
@@ -366,8 +369,13 @@ class Gradient(Bandit):
         A_best = testbed.best_action()
         R = testbed.action_value(self.At)
         self.Na[self.At] += 1
-        H = self.H - self.lr * (R - self.Q) * probs
-        H[self.At] = self.H[self.At] + self.lr * (R - self.Q[self.At]) * (1 - probs[self.At])
+
+        if self.disable_baseline:
+            H = self.H - self.lr * R * probs
+            H[self.At] = self.H[self.At] + self.lr * R * (1 - probs[self.At])
+        else:
+            H = self.H - self.lr * (R - self.Q) * probs
+            H[self.At] = self.H[self.At] + self.lr * (R - self.Q[self.At]) * (1 - probs[self.At])
         self.H = H
 
 
