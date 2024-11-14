@@ -60,7 +60,7 @@ class Bandit(metaclass=ABCMeta):
         self.action_values = None
         self.n = 1
 
-    def initialization(self, testbed):
+    def _reinit(self, testbed):
         """Reinitialize bandit for a new run when running in serial or parallel"""
         testbed.reset_ev()
         self.n = 1
@@ -87,8 +87,15 @@ class Bandit(metaclass=ABCMeta):
         n_jobs: int = 4,
         serial: bool = False,
     ):
-        """Run bandit for specified number of steps and optionally multiple runs"""
+        """Run bandit for specified number of steps and optionally multiple runs
 
+        Args:
+            testbed: Testbed class object providing a reward distribution
+            steps: Number of steps in a single run
+            n_runs: Number of indepedent runs
+            n_jobs: Number of process pools for executing runs in parallel
+            serial: Disables parallel runs if set to True
+        """
         if serial:
             self.action_values = self._serialrun(testbed, steps, n_runs)
         elif n_runs >= 4:
@@ -101,7 +108,7 @@ class Bandit(metaclass=ABCMeta):
         else:
             self.action_values = self._serialrun(testbed, steps, n_runs)
 
-    def _serialrun(self, testbed, steps, n_runs):
+    def _serialrun(self, testbed, steps:int, n_runs:int):
         action_values = np.empty((steps, len(self.columns), n_runs))
         for k in range(n_runs):
             action_values[:, 0, k] = k
@@ -110,11 +117,11 @@ class Bandit(metaclass=ABCMeta):
                 action_values[n, 2:, k] = self.select_action(testbed)
 
             # Reset Q for next run
-            self.initialization(testbed)
+            self._reinit(testbed)
 
         return action_values
 
-    def _singlerun(self, testbed, steps, idx_run):
+    def _singlerun(self, testbed, steps:int, idx_run:int):
         # Generate different random states for parallel workers
         np.random.seed()
 
@@ -125,11 +132,11 @@ class Bandit(metaclass=ABCMeta):
             action_values[n, 2:, 0] = self.select_action(testbed)
 
         # Reset Q for next run
-        self.initialization(testbed)
+        self._reinit(testbed)
 
         return action_values
 
-    def _multirun(self, testbed, steps, n_runs, n_jobs=4):
+    def _multirun(self, testbed, steps:int, n_runs:int, n_jobs:int=4):
         with ProcessPoolExecutor(max_workers=n_jobs) as executor:
             action_values = executor.map(
                 self._singlerun,
@@ -178,6 +185,10 @@ class EpsilonGreedy(Bandit):
         self.alpha = alpha
 
     def select_action(self, testbed):
+        """
+        Args:
+            testbed: Testbed class object providing a reward distribution
+        """
         logging.debug("Q: %s", self.Q)
         if np.random.binomial(1, self.epsilon) == 1:
             self.At = np.random.randint(self.Qn)
@@ -245,7 +256,7 @@ class UCB(Bandit):
         # Initialize self.Na as 1e-100 number instead of 0
         self.Na = np.ones(self.Na.size) * 1e-100
 
-    def initialization(self, testbed):
+    def _reinit(self, testbed):
         """Reinitialize bandit attributes for a new run"""
         testbed.reset_ev()
         self.n = 1
@@ -255,6 +266,10 @@ class UCB(Bandit):
         self.Na = np.ones(self.Na.size) * 1e-100
 
     def select_action(self, testbed):
+        """
+        Args:
+            testbed: Testbed class object providing a reward distribution
+        """
         logging.debug("Na: %s", self.Na)
         self.U = self.Q + self.c * np.sqrt(np.log(self.n) / self.Na)
         logging.debug("U: %s", self.U)
@@ -314,7 +329,7 @@ class Gradient(Bandit):
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
     """
 
-    def __init__(self, Q_init: Dict, lr=0.1, alpha=0.1):
+    def __init__(self, Q_init: Dict, lr:float=0.1, alpha:float=0.1):
         """ """
         super().__init__(Q_init)
         self.lr = lr
@@ -322,7 +337,7 @@ class Gradient(Bandit):
         self.H = deepcopy(self.Q_init)
         self.An = self.H.size
 
-    def initialization(self, testbed):
+    def _reinit(self, testbed):
         """Reinitialize bandit attributes for a new run"""
         testbed.reset_ev()
         self.n = 1
@@ -341,6 +356,9 @@ class Gradient(Bandit):
         Ht+1(At) = Ht(At) + lr * (Rt - Q[At]) * (1 - softmax(At)) for At
         Ht+1(a) = Ht(a) + lr * (Rt - Q[At]) * softmax(a) for all a != At
         where At is action chosen
+
+        Args:
+            testbed: Testbed class object providing a reward distribution
         """
         probs = self.softmax(self.H)
         self.At = np.random.choice(self.An, p=probs)
@@ -362,7 +380,6 @@ class Gradient(Bandit):
                 R - self.Q[self.At]
             )
         else:
-            logging.debug("alpha: %s, At: %s, R: %s", self.alpha, self.At, R)
             self.Q[self.At] = self.Q[self.At] + self.alpha * (R - self.Q[self.At])
 
         self.n += 1
