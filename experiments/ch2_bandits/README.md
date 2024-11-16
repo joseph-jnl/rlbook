@@ -87,3 +87,60 @@ Figure 2.4 (rlbook): rlbook UCB implementation. Na, the array that keeps the cou
 [Link to wandb artifact](https://api.wandb.ai/links/josephjnl/ol9eknr9)
 
 [🔼 Back to top](#chapter-2---multi-armed-bandits)
+
+***
+
+## Figure 2.5 Gradient Bandits
+
+Recreate the following experiment using the cli command below:
+```bash
+python run.py -m run.steps=1000 run.n_runs=2000 experiment.tag=fig2.5 experiment.upload=true bandit._target_=rlbook.bandits.algorithms.Gradient +bandit.lr=0.1,0.4 +bandit.disable_baseline=false,true
+```
+
+Note that the testbed was modified to increase the means by +4:
+```yaml
+testbed:
+  _target_: rlbook.bandits.testbeds.NormalTestbed 
+  expected_values:
+    0: 
+     mean: 4.2
+     std: 1
+    1:
+     mean: 3.2
+     std: 1
+    2:
+     mean: 5.7
+     std: 1
+    3:
+     mean: 4.5
+     std: 1
+    4:
+     mean: 5.5
+     std: 1
+    5:
+     mean: 2.5
+     std: 1
+    6:
+     mean: 3.8
+     std: 1
+    7:
+     mean: 3.0
+     std: 1
+    8:
+     mean: 4.1
+     std: 1
+    9:
+     mean: 3.2
+     std: 1
+```
+
+![image](https://github.com/user-attachments/assets/682e6a77-5b6c-4cc0-b5d1-66739fbe56c4)  
+Figure 2.5 (Sutton & Barto): Average performance of the gradient bandit algorithm with and without a reward baseline on the 10-armed testbed when the q*(a) are chosen to be near +4 rather than near zero.
+
+<br/>
+
+![image](https://github.com/user-attachments/assets/3fbf3483-0b24-4da2-98d5-eb1034b846ac)  
+Figure 2.5 (rlbook): Note that the baseline R hat t did not include Rt, following the intent of equation 2.12 where "R hat t is the average of the rewards up to but not including time t". This is different from the Sutton and Barto empirical results shown inFigure 2.5 where they have the footnote: "In the empirical results in this chapter, the baseline R hat t also included Rt."
+[Link to wandb artifact](https://api.wandb.ai/links/josephjnl/df7003q5)
+
+[🔼 Back to top](#chapter-2---multi-armed-bandits)
