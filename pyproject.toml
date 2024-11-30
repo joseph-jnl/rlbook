@@ -12,23 +12,31 @@ dependencies = [
 readme = "README.md"
 requires-python = ">= 3.11"
 
+[project.optional-dependencies]
+cpu = [
+  "jax",
+]
+gpu = [
+  "jax[cuda12]",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.uv]
-managed = true
-dev-dependencies = [
-    "pytest>=8.2.2",
-    "hydra-core>=1.3.2",
-    "plotnine>=0.13.6",
-    "wandb>=0.18.5",
-    "austin-dist>=3.7.0",
-    "jupyterlab>=4.2.5",
-]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rlbook"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2.2",
+    "hydra-core>=1.3.2",
+    "plotnine>=0.13.6",
+    "wandb>=0.18.5",
+    "austin-dist>=3.7.0",
+    "jupyterlab>=4.2.5",
+    "ruff>=0.8.0",
+]
