@@ -153,7 +153,7 @@ def main(cfg: DictConfig):
     testbed = instantiate(cfg.testbed, _convert_="all")
     bandit = instantiate(
         cfg.bandit,
-        Q_init=Q_init*np.ones(testbed.expected_values["mean"].size),
+        Q_init=Q_init * np.ones(testbed.expected_values["mean"].size),
         _convert_="all",
     )
 
@@ -187,11 +187,13 @@ def main(cfg: DictConfig):
         upload(df_avg_ar, ["reward", "optimal_action_percent"])
 
         wandb.log(
-            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()}, commit=False
+            {"duration (s)": timedelta(seconds=run_end - run_start).total_seconds()},
+            commit=False,
         )
 
         wandb.log(
-            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))}, commit=False
+            {"Reward Distribution": wandb.Image(steps_violin_plotter(df_ar, testbed))},
+            commit=False,
         )
         wandb.finish()
 

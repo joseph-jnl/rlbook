@@ -108,7 +108,7 @@ class Bandit(metaclass=ABCMeta):
         else:
             self.action_values = self._serialrun(testbed, steps, n_runs)
 
-    def _serialrun(self, testbed, steps:int, n_runs:int):
+    def _serialrun(self, testbed, steps: int, n_runs: int):
         action_values = np.empty((steps, len(self.columns), n_runs))
         for k in range(n_runs):
             action_values[:, 0, k] = k
@@ -121,7 +121,7 @@ class Bandit(metaclass=ABCMeta):
 
         return action_values
 
-    def _singlerun(self, testbed, steps:int, idx_run:int):
+    def _singlerun(self, testbed, steps: int, idx_run: int):
         # Generate different random states for parallel workers
         np.random.seed()
 
@@ -136,7 +136,7 @@ class Bandit(metaclass=ABCMeta):
 
         return action_values
 
-    def _multirun(self, testbed, steps:int, n_runs:int, n_jobs:int=4):
+    def _multirun(self, testbed, steps: int, n_runs: int, n_jobs: int = 4):
         with ProcessPoolExecutor(max_workers=n_jobs) as executor:
             action_values = executor.map(
                 self._singlerun,
@@ -327,11 +327,17 @@ class Gradient(Bandit):
             Note on varying step sizes such as using 1/n "sample_average":
                 self.Q[self.At] = self.Q[self.At] + 1/self.Na[self.At]*(R-self.Q[self.At])
             Theoretically guaranteed to converge, however in practice, slow to converge compared to constant alpha
-        disable_baseline (bool): 
+        disable_baseline (bool):
             Disable rewards baseline when calculating H, note that Q[At] is substituted for Pi.
     """
 
-    def __init__(self, Q_init: Dict, lr:float=0.1, alpha:float=0.1, disable_baseline:bool=False):
+    def __init__(
+        self,
+        Q_init: Dict,
+        lr: float = 0.1,
+        alpha: float = 0.1,
+        disable_baseline: bool = False,
+    ):
         """ """
         super().__init__(Q_init)
         self.lr = lr
@@ -375,9 +381,10 @@ class Gradient(Bandit):
             H[self.At] = self.H[self.At] + self.lr * R * (1 - probs[self.At])
         else:
             H = self.H - self.lr * (R - self.Q) * probs
-            H[self.At] = self.H[self.At] + self.lr * (R - self.Q[self.At]) * (1 - probs[self.At])
+            H[self.At] = self.H[self.At] + self.lr * (R - self.Q[self.At]) * (
+                1 - probs[self.At]
+            )
         self.H = H
-
 
         logging.debug("probs: %s", probs)
         logging.debug("H: %s", self.H)
