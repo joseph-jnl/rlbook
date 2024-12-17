@@ -19,8 +19,11 @@ class Grid(metaclass=ABCMeta):
         self.n_cols = n_cols
         self.actions = actions
 
+    def _v_init(self):
+        return jnp.zeros((self.n_rows, self.n_cols))
 
-class SimpleGrid(Grid):
+
+class RandomGrid(Grid):
     """"""
 
     def __init__(
@@ -30,23 +33,20 @@ class SimpleGrid(Grid):
         special_states_rewards: Int[Array, "{len(special_states)}"],
         n_rows: int = 5,
         n_cols: int = 5,
-        policy: str = "random",
         R: Float[Array, "n_rows n_cols"] = None,
         P: Float[Array, "3 3"] = None,
-        v: Float[Array, "n_rows n_cols"] = None,
     ):
-        super().__init__()
+        super().__init__(n_rows=n_rows, n_cols=n_cols)
         self.special_states = special_states
         self.special_states_rewards = special_states_rewards
         self.special_states_prime = special_states_prime
 
-        self.v = jnp.zeros((n_rows, n_cols))
-        if policy == "random":
-            self.P = self._policy_random()
-            self.R = self._reward_random()
+        v = self._v_init()
+        self.P = self._policy()
+        self.R = self._reward(v)
 
     def _tree_flatten(self):
-        children = (self.v,)  # arrays / dynamic values
+        children = ()  # arrays / dynamic values
         # static values
         aux_data = {
             "R": self.R,
@@ -67,13 +67,19 @@ class SimpleGrid(Grid):
             aux_data["special_states_rewards"],
             R=aux_data["R"],
             P=aux_data["P"],
-            v=children[0],
         )
 
         return grid
 
-    def _policy_random(self):
-        """"""
+    def _policy(self):
+        """
+        Define random policy conv kernel with equal probabilty of taking each action:
+
+        P = Array([[0,     0.25,  0   ],
+                   [0.25,  0,     0.25],
+                   [0,     0.25,  0   ],]
+
+        """
         policy = jnp.zeros((3, 3))
         policy = policy.at[self.actions[0] + 1, self.actions[1] + 1].set(0.25)
 
@@ -81,21 +87,22 @@ class SimpleGrid(Grid):
 
     def estimate_state_value(self, iter=1000):
         """"""
+        v = self._v_init()
         for _ in range(iter):
-            vp = self.state_value(
-                self.v,
+            v = self.state_value(
+                v,
                 self.R,
                 self.P,
                 self.special_states,
                 self.special_states_prime,
                 self.special_states_rewards,
             )
-            self.v = vp
+        return v
 
-    def _reward_random(self):
+    def _reward(self, v):
         """Provides reward for all states in grid when following a random policy"""
         R = convolve2d(
-            jnp.pad(self.v, pad_width=(1, 1), constant_values=-1),
+            jnp.pad(v, pad_width=(1, 1), constant_values=-1),
             self.P,
             mode="valid",
         )
@@ -114,6 +121,7 @@ class SimpleGrid(Grid):
         special_states,
         special_states_prime,
         special_states_rewards,
+        discount: float = 0.9,
     ):
         """"""
         # Update interior grid
@@ -124,27 +132,24 @@ class SimpleGrid(Grid):
                 P,
                 mode="valid",
             )
-            * 0.9
+            * discount
         )
 
         # Update edges except for corners
-        vp = vp.at[1:-1, 0].add(v[1:-1, 0] * 0.9 * 0.25)
-        vp = vp.at[1:-1, -1].add(v[1:-1, -1] * 0.9 * 0.25)
-        vp = vp.at[0, 1:-1].add(v[0, 1:-1] * 0.9 * 0.25)
-        vp = vp.at[-1, 1:-1].add(v[-1, 1:-1] * 0.9 * 0.25)
+        vp = vp.at[1:-1, 0].add(v[1:-1, 0] * discount * 0.25)
+        vp = vp.at[1:-1, -1].add(v[1:-1, -1] * discount * 0.25)
+        vp = vp.at[0, 1:-1].add(v[0, 1:-1] * discount * 0.25)
+        vp = vp.at[-1, 1:-1].add(v[-1, 1:-1] * discount * 0.25)
 
         # Update corners
-        vp = vp.at[0, 0].add(v[0, 0] * 2 * 0.9 * 0.25)
-        vp = vp.at[0, -1].add(v[0, -1] * 2 * 0.9 * 0.25)
-        vp = vp.at[-1, -1].add(v[-1, -1] * 2 * 0.9 * 0.25)
-        vp = vp.at[-1, 0].add(v[-1, 0] * 2 * 0.9 * 0.25)
+        vp = vp.at[0, 0].add(v[0, 0] * 2 * discount * 0.25)
+        vp = vp.at[0, -1].add(v[0, -1] * 2 * discount * 0.25)
+        vp = vp.at[-1, -1].add(v[-1, -1] * 2 * discount * 0.25)
+        vp = vp.at[-1, 0].add(v[-1, 0] * 2 * discount * 0.25)
 
         # Update special states
         vp = vp.at[special_states[0], special_states[1]].set(
-            jnp.sum(
-                v[special_states_prime[0], special_states_prime[1]],
-            )
-            * 0.9
+            v[special_states_prime[0], special_states_prime[1]] * discount
             + special_states_rewards
         )
 
@@ -152,5 +157,5 @@ class SimpleGrid(Grid):
 
 
 tree_util.register_pytree_node(
-    SimpleGrid, SimpleGrid._tree_flatten, SimpleGrid._tree_unflatten
+    RandomGrid, RandomGrid._tree_flatten, RandomGrid._tree_unflatten
 )
