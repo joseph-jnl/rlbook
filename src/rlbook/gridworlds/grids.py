@@ -13,13 +13,12 @@ class Grid(metaclass=ABCMeta):
         self,
         n_rows: int = 5,
         n_cols: int = 5,
-        actions: Float[Array, "2 4"] = jnp.array([[-1, 1, 0, 0], [0, 0, 1, -1]]),
     ):
         self.n_rows = n_rows
         self.n_cols = n_cols
-        self.actions = actions
+        self.actions = jnp.array([[-1, 1, 0, 0], [0, 0, 1, -1]])
 
-    def _v_init(self):
+    def init_zeros(self):
         return jnp.zeros((self.n_rows, self.n_cols))
 
 
@@ -41,20 +40,22 @@ class RandomGrid(Grid):
         self.special_states_rewards = special_states_rewards
         self.special_states_prime = special_states_prime
 
-        v = self._v_init()
+        self.v_init = self.init_zeros()
         self.P = self._policy()
-        self.R = self._reward(v)
+        self.R = self._reward(self.v_init)
 
     def _tree_flatten(self):
-        children = ()  # arrays / dynamic values
-        # static values
+        children = (
+            self.R,
+            self.P,
+            self.actions,
+            self.v_init,
+        )  # arrays and dynamic values
+        # static values (non-arrays)
         aux_data = {
-            "R": self.R,
-            "P": self.P,
             "special_states": self.special_states,
             "special_states_prime": self.special_states_prime,
             "special_states_rewards": self.special_states_rewards,
-            "actions": self.actions,
         }
 
         return (children, aux_data)
@@ -65,9 +66,10 @@ class RandomGrid(Grid):
             aux_data["special_states"],
             aux_data["special_states_prime"],
             aux_data["special_states_rewards"],
-            R=aux_data["R"],
-            P=aux_data["P"],
+            R=children[0],
+            P=children[1],
         )
+        grid.v_init = children[2]
 
         return grid
 
@@ -87,7 +89,7 @@ class RandomGrid(Grid):
 
     def estimate_state_value(self, iter=1000):
         """"""
-        v = self._v_init()
+        v = self.v_init
         for _ in range(iter):
             v = self.state_value(
                 v,
