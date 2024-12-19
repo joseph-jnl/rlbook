@@ -37,8 +37,8 @@ class RandomGrid(Grid):
     ):
         super().__init__(n_rows=n_rows, n_cols=n_cols)
         self.special_states = special_states
-        self.special_states_rewards = special_states_rewards
         self.special_states_prime = special_states_prime
+        self.special_states_rewards = special_states_rewards
 
         self.v_init = self.init_zeros()
         self.P = self._policy()
@@ -46,6 +46,7 @@ class RandomGrid(Grid):
 
     def _tree_flatten(self):
         children = (
+            self.special_states_rewards,
             self.R,
             self.P,
             self.actions,
@@ -55,7 +56,6 @@ class RandomGrid(Grid):
         aux_data = {
             "special_states": self.special_states,
             "special_states_prime": self.special_states_prime,
-            "special_states_rewards": self.special_states_rewards,
         }
 
         return (children, aux_data)
@@ -65,9 +65,9 @@ class RandomGrid(Grid):
         grid = cls(
             aux_data["special_states"],
             aux_data["special_states_prime"],
-            aux_data["special_states_rewards"],
-            R=children[0],
-            P=children[1],
+            children[0],
+            R=children[1],
+            P=children[2],
         )
         grid.v_init = children[2]
 
