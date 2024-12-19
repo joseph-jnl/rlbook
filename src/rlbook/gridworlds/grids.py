@@ -1,8 +1,9 @@
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 import jax.numpy as jnp
-from jax import jit, tree_util
+from jax import jit
 from jax.scipy.signal import convolve2d
+from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array, Float, Int
 
 
@@ -21,7 +22,22 @@ class Grid(metaclass=ABCMeta):
     def init_zeros(self):
         return jnp.zeros((self.n_rows, self.n_cols))
 
+    @property
+    @abstractmethod
+    def policy(self): ...
 
+    @property
+    @abstractmethod
+    def reward(self): ...
+
+    @abstractmethod
+    def tree_flatten(self): ...
+
+    @abstractmethod
+    def tree_unflatten(self): ...
+
+
+@register_pytree_node_class
 class RandomGrid(Grid):
     """"""
 
@@ -41,39 +57,11 @@ class RandomGrid(Grid):
         self.special_states_rewards = special_states_rewards
 
         self.v_init = self.init_zeros()
-        self.P = self._policy()
-        self.R = self._reward(self.v_init)
+        self.P = self.policy
+        self.R = self.reward
 
-    def _tree_flatten(self):
-        children = (
-            self.special_states_rewards,
-            self.R,
-            self.P,
-            self.actions,
-            self.v_init,
-        )  # arrays and dynamic values
-        # static values (non-arrays)
-        aux_data = {
-            "special_states": self.special_states,
-            "special_states_prime": self.special_states_prime,
-        }
-
-        return (children, aux_data)
-
-    @classmethod
-    def _tree_unflatten(cls, aux_data, children):
-        grid = cls(
-            aux_data["special_states"],
-            aux_data["special_states_prime"],
-            children[0],
-            R=children[1],
-            P=children[2],
-        )
-        grid.v_init = children[2]
-
-        return grid
-
-    def _policy(self):
+    @property
+    def policy(self):
         """
         Define random policy conv kernel with equal probabilty of taking each action:
 
@@ -87,24 +75,11 @@ class RandomGrid(Grid):
 
         return policy
 
-    def estimate_state_value(self, iter=1000):
-        """"""
-        v = self.v_init
-        for _ in range(iter):
-            v = self.state_value(
-                v,
-                self.R,
-                self.P,
-                self.special_states,
-                self.special_states_prime,
-                self.special_states_rewards,
-            )
-        return v
-
-    def _reward(self, v):
+    @property
+    def reward(self):
         """Provides reward for all states in grid when following a random policy"""
         R = convolve2d(
-            jnp.pad(v, pad_width=(1, 1), constant_values=-1),
+            jnp.pad(self.v_init, pad_width=(1, 1), constant_values=-1),
             self.P,
             mode="valid",
         )
@@ -157,7 +132,45 @@ class RandomGrid(Grid):
 
         return vp
 
+    def estimate_state_value(self, iter=1000):
+        """"""
+        v = self.v_init
+        for _ in range(iter):
+            v = self.state_value(
+                v,
+                self.R,
+                self.P,
+                self.special_states,
+                self.special_states_prime,
+                self.special_states_rewards,
+            )
+        return v
 
-tree_util.register_pytree_node(
-    RandomGrid, RandomGrid._tree_flatten, RandomGrid._tree_unflatten
-)
+    def tree_flatten(self):
+        children = (
+            self.special_states_rewards,
+            self.R,
+            self.P,
+            self.actions,
+            self.v_init,
+        )  # arrays and dynamic values
+        # static values (non-arrays)
+        aux_data = {
+            "special_states": self.special_states,
+            "special_states_prime": self.special_states_prime,
+        }
+
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        grid = cls(
+            aux_data["special_states"],
+            aux_data["special_states_prime"],
+            children[0],
+            R=children[1],
+            P=children[2],
+        )
+        grid.v_init = children[2]
+
+        return grid
