@@ -8,7 +8,10 @@ from jaxtyping import Array, Float, Int
 
 
 class Grid(metaclass=ABCMeta):
-    """ """
+    """ 
+    
+    
+    """
 
     def __init__(
         self,
@@ -45,7 +48,7 @@ class RandomGrid(Grid):
         self,
         special_states: list[list[int, int]],
         special_states_prime: list[list[int, int]],
-        special_states_rewards: Int[Array, "{len(special_states)}"],
+        special_states_rewards: Int[Array, "1 {len(special_states)}"],
         n_rows: int = 5,
         n_cols: int = 5,
         R: Float[Array, "n_rows n_cols"] = None,
@@ -61,7 +64,7 @@ class RandomGrid(Grid):
         self.R = self.reward
 
     @property
-    def policy(self):
+    def policy(self) -> Float[Array, "3 3"]:
         """
         Define random policy conv kernel with equal probabilty of taking each action:
 
@@ -76,7 +79,7 @@ class RandomGrid(Grid):
         return policy
 
     @property
-    def reward(self):
+    def reward(self) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
         """Provides reward for all states in grid when following a random policy"""
         R = convolve2d(
             jnp.pad(self.v_init, pad_width=(1, 1), constant_values=-1),
@@ -92,14 +95,14 @@ class RandomGrid(Grid):
     @jit
     def state_value(
         self,
-        v,
-        R,
-        P,
-        special_states,
-        special_states_prime,
-        special_states_rewards,
+        v: Float[Array, "n_rows n_cols"],
+        R: Float[Array, "n_rows n_cols"],
+        P: Float[Array, "3 3"],
+        special_states: list[list[int, int]],
+        special_states_prime: list[list[int, int]],
+        special_states_rewards: Float[Array, "1 {len(special_states)}"],
         discount: float = 0.9,
-    ):
+    ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
         """"""
         # Update interior grid
         vp = (
@@ -132,7 +135,9 @@ class RandomGrid(Grid):
 
         return vp
 
-    def estimate_state_value(self, iter=1000):
+    def estimate_state_value(
+        self, iter: int = 1000
+    ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
         """"""
         v = self.v_init
         for _ in range(iter):
