@@ -18,9 +18,7 @@ class Grid(metaclass=ABCMeta):
         self.n_rows = n_rows
         self.n_cols = n_cols
         self.actions = jnp.array([[-1, 1, 0, 0], [0, 0, 1, -1]])
-
-    def init_zeros(self):
-        return jnp.zeros((self.n_rows, self.n_cols))
+        self.v_init = jnp.zeros((self.n_rows, self.n_cols))
 
     @property
     @abstractmethod
@@ -29,11 +27,38 @@ class Grid(metaclass=ABCMeta):
     @abstractmethod
     def reward(self): ...
 
-    @abstractmethod
-    def tree_flatten(self): ...
+    def tree_flatten(self):
+        children = (
+            self.special_states_rewards,
+            self.R,
+            self.P,
+            self.actions,
+            self.v_init,
+        )  # arrays and dynamic values
+        # static values (non-arrays)
+        aux_data = {
+            "special_states": self.special_states,
+            "special_states_prime": self.special_states_prime,
+            "n_rows": self.n_rows,
+            "n_cols": self.n_cols,
+        }
 
-    @abstractmethod
-    def tree_unflatten(self): ...
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        grid = cls(
+            aux_data["special_states"],
+            aux_data["special_states_prime"],
+            children[0],
+            R=children[1],
+            P=children[2],
+            n_rows=aux_data["n_rows"],
+            n_cols=aux_data["n_cols"],
+        )
+        grid.v_init = children[2]
+
+        return grid
 
 
 @register_pytree_node_class
@@ -55,7 +80,7 @@ class RandomGrid(Grid):
         self.special_states_prime = special_states_prime
         self.special_states_rewards = special_states_rewards
 
-        self.v_init = self.init_zeros()
+        self.v_init = jnp.zeros((self.n_rows, self.n_cols))
         self.P = self.policy
         self.R = self.reward
 
@@ -135,35 +160,6 @@ class RandomGrid(Grid):
             )
         return v
 
-    def tree_flatten(self):
-        children = (
-            self.special_states_rewards,
-            self.R,
-            self.P,
-            self.actions,
-            self.v_init,
-        )  # arrays and dynamic values
-        # static values (non-arrays)
-        aux_data = {
-            "special_states": self.special_states,
-            "special_states_prime": self.special_states_prime,
-        }
-
-        return (children, aux_data)
-
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        grid = cls(
-            aux_data["special_states"],
-            aux_data["special_states_prime"],
-            children[0],
-            R=children[1],
-            P=children[2],
-        )
-        grid.v_init = children[2]
-
-        return grid
-
 
 @register_pytree_node_class
 class OptimalGrid(Grid):
@@ -184,7 +180,6 @@ class OptimalGrid(Grid):
         self.special_states_prime = special_states_prime
         self.special_states_rewards = special_states_rewards
 
-        self.v_init = self.init_zeros()
         self.P = self.policy
         self.R = self.reward(self.v_init, self.policy)
 
@@ -262,7 +257,7 @@ class OptimalGrid(Grid):
             self.special_states_rewards
         )
 
-        return R 
+        return R
 
     @jit
     def state_value(
@@ -346,32 +341,3 @@ class OptimalGrid(Grid):
                 self.special_states_rewards,
             )
         return v
-
-    def tree_flatten(self):
-        children = (
-            self.special_states_rewards,
-            self.R,
-            self.P,
-            self.actions,
-            self.v_init,
-        )  # arrays and dynamic values
-        # static values (non-arrays)
-        aux_data = {
-            "special_states": self.special_states,
-            "special_states_prime": self.special_states_prime,
-        }
-
-        return (children, aux_data)
-
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        grid = cls(
-            aux_data["special_states"],
-            aux_data["special_states_prime"],
-            children[0],
-            R=children[1],
-            P=children[2],
-        )
-        grid.v_init = children[2]
-
-        return grid
