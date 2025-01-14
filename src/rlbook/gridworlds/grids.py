@@ -8,13 +8,25 @@ from jaxtyping import Array, Float, Int
 
 
 class Grid(metaclass=ABCMeta):
-    """ """
+    """Base grid class with jax jit related helper methods.
+
+    Attributes:
+        n_rows: number of rows.
+        n_cols: number of columns.
+        actions: actions that can be taken in the grid.
+        v_init: initial state values.
+    """
 
     def __init__(
         self,
         n_rows: int = 5,
         n_cols: int = 5,
     ):
+        """
+        Args:
+            n_rows: number of rows.
+            n_cols: number of columns.
+        """
         self.n_rows = n_rows
         self.n_cols = n_cols
         self.actions = jnp.array([[-1, 1, 0, 0], [0, 0, 1, -1]])
@@ -28,6 +40,7 @@ class Grid(metaclass=ABCMeta):
     def reward(self): ...
 
     def tree_flatten(self):
+        """Jax flatten method for serialization, required to jit class methods."""
         children = (
             self.special_states_rewards,
             self.R,
@@ -47,6 +60,7 @@ class Grid(metaclass=ABCMeta):
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):
+        """Jax unflatten method for deserialization, required to jit class methods."""
         grid = cls(
             aux_data["special_states"],
             aux_data["special_states_prime"],
@@ -63,7 +77,7 @@ class Grid(metaclass=ABCMeta):
 
 @register_pytree_node_class
 class RandomGrid(Grid):
-    """"""
+    """RandomGrid class for estimating state values in a gridworld using a random policy."""
 
     def __init__(
         self,
@@ -75,6 +89,18 @@ class RandomGrid(Grid):
         R: Float[Array, "n_rows n_cols"] = None,
         P: Float[Array, "3 3"] = None,
     ):
+        """
+        Args:
+            special_states: list containing special states row and columns.
+              e.g. [[0, 0], [1, 3]] would correspond to special state A located at row 0 and column 1
+              and special state B located at row 1 and column 3.
+            special_states_prime: list of special states prime rows and columns, see previous special_states example.
+            special_states_rewards: jax array of rewards for special states. Note: not a list!
+            n_rows: number of rows.
+            n_cols: number of columns.
+            R: jax array specifying rewards for all states when taking a random policy.
+            P: jax array specifying a conv kernel for a random policy.
+        """
         super().__init__(n_rows=n_rows, n_cols=n_cols)
         self.special_states = special_states
         self.special_states_prime = special_states_prime
@@ -92,7 +118,6 @@ class RandomGrid(Grid):
         P = Array([[0,     0.25,  0   ],
                    [0.25,  0,     0.25],
                    [0,     0.25,  0   ],]
-
         """
         policy = jnp.zeros((3, 3))
         policy = policy.at[self.actions[0] + 1, self.actions[1] + 1].set(0.25)
@@ -124,7 +149,7 @@ class RandomGrid(Grid):
         special_states_rewards: Float[Array, "1 {len(special_states)}"],
         discount: float = 0.9,
     ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
-        """"""
+        """State value function for estimating state values in a gridworld using a random policy"""
         # Update states
         vp = (
             R
@@ -147,7 +172,7 @@ class RandomGrid(Grid):
     def estimate_state_value(
         self, iter: int = 1000
     ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
-        """"""
+        """Estimate state values in a gridworld using a random policy"""
         v = self.v_init
         for _ in range(iter):
             v = self.state_value(
@@ -163,18 +188,30 @@ class RandomGrid(Grid):
 
 @register_pytree_node_class
 class OptimalGrid(Grid):
-    """"""
+    """OptimalGrid class for estimating state values in a gridworld using an optimal policy"""
 
     def __init__(
         self,
-        special_states: list[list[int, int]],
-        special_states_prime: list[list[int, int]],
+        special_states: list[list[int], list[int]],
+        special_states_prime: list[list[int], list[int]],
         special_states_rewards: Int[Array, "1 {len(special_states)}"],
         n_rows: int = 5,
         n_cols: int = 5,
         R: Float[Array, "n_rows n_cols"] = None,
         P: Float[Array, "3 3"] = None,
     ):
+        """
+        Args:
+            special_states: list containing special states row and columns.
+              e.g. [[0, 0], [1, 3]] would correspond to special state A located at row 0 and column 1
+              and special state B located at row 1 and column 3.
+            special_states_prime: list of special states prime rows and columns, see previous special_states example.
+            special_states_rewards: jax array of rewards for special states. Note: not a list!
+            n_rows: number of rows.
+            n_cols: number of columns.
+            R: jax array specifying rewards for all states when taking an optimal policy.
+            P: jax array specifying a conv kernel for an optimal policy.
+        """
         super().__init__(n_rows=n_rows, n_cols=n_cols)
         self.special_states = special_states
         self.special_states_prime = special_states_prime
@@ -265,12 +302,12 @@ class OptimalGrid(Grid):
         v: Float[Array, "n_rows n_cols"],
         R: Float[Array, "4 n_rows n_cols"],
         P: Float[Array, "4 3 3"],
-        special_states: list[list[int, int]],
-        special_states_prime: list[list[int, int]],
+        special_states: list[list[int], list[int]],
+        special_states_prime: list[list[int], list[int]],
         special_states_rewards: Float[Array, "1 {len(special_states)}"],
         discount: float = 0.9,
     ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
-        """"""
+        """State value function for estimating state values in a gridworld using an optimal policy"""
 
         vp = jnp.zeros((4, self.n_rows, self.n_cols))
 
@@ -329,7 +366,7 @@ class OptimalGrid(Grid):
     def estimate_state_value(
         self, iter: int = 1000
     ) -> Float[Array, "{self.n_rows} {self.n_cols}"]:
-        """"""
+        """Estimate state values in a gridworld using an optimal policy"""
         v = self.v_init
         for _ in range(iter):
             v = self.state_value(
