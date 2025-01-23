@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import wandb
 from hydra.core.hydra_config import HydraConfig
+from jax._src import config
 from jaxtyping import Array, Float
 from omegaconf import DictConfig, OmegaConf
 from plotnine import (
@@ -32,6 +33,7 @@ from rlbook.plots.plotnine_utils import subplot
 
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+config.update("jax_platforms", "cuda") # Assume GPU available
 
 
 def plot_state_reward(v, grid: Grid, label=True):
@@ -174,10 +176,10 @@ def v_policy(
     for i in range(v.shape[0]):
         for j in range(v.shape[1]):
             actions = {
-                "up": -1e99,
-                "left": -1e99,
-                "down": -1e99,
-                "right": -1e99,
+                "up": -1e9,
+                "left": -1e9,
+                "down": -1e9,
+                "right": -1e9,
             }
             if (i, j) in special_states_ij:
                 policy[i, j] = [90, 180, 270, 0]
