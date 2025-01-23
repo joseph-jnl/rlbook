@@ -1,8 +1,15 @@
+import logging
 from string import ascii_uppercase
 
+import hydra
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import wandb
+from hydra.core.hydra_config import HydraConfig
 from jaxtyping import Array, Float
+from omegaconf import DictConfig, OmegaConf
 from plotnine import (
     aes,
     arrow,
@@ -20,7 +27,11 @@ from plotnine import (
     theme_void,
 )
 
-from rlbook.gridworlds.grids import Grid
+from rlbook.gridworlds.grids import Grid, OptimalGrid, RandomGrid
+from rlbook.plots.plotnine_utils import subplot
+
+local_logger = logging.getLogger("experiment")
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 def plot_state_reward(v, grid: Grid, label=True):
@@ -219,22 +230,89 @@ def plot_policy(policy):
     )
     p = p + geom_spoke(
         mapping=aes(x="column", y="row", radius=0.35, angle="up"),
-        arrow=arrow(ends="last", length=0.1),
+        arrow=arrow(ends="last", type="closed", length=0.075),
         na_rm=True,
     )
     p = p + geom_spoke(
         mapping=aes(x="column", y="row", radius=0.35, angle="left"),
-        arrow=arrow(ends="last", length=0.1),
+        arrow=arrow(ends="last", type="closed", length=0.075),
         na_rm=True,
     )
     p = p + geom_spoke(
         mapping=aes(x="column", y="row", radius=0.35, angle="down"),
-        arrow=arrow(ends="last", length=0.1),
+        arrow=arrow(ends="last", type="closed", length=0.075),
         na_rm=True,
     )
     p = p + geom_spoke(
         mapping=aes(x="column", y="row", radius=0.35, angle="right"),
-        arrow=arrow(ends="last", length=0.1),
+        arrow=arrow(ends="last", type="closed", length=0.075),
         na_rm=True,
     )
     return p
+
+
+@hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
+def main(cfg: DictConfig):
+    local_logger.info("Run in debug mode by setting hydra.verbose=true")
+    if not cfg.experiment.upload:
+        local_logger.info(
+            "wandb upload set to false, local run only. Set experiment.upload=true to track experiment"
+        )
+
+    grid_type = cfg.grid._target_.split(".")[-1]
+    grid_attrs = OmegaConf.to_container(cfg.grid)
+    hp = {
+        ("class" if k == "_target_" else k): (grid_type if k == "_target_" else v)
+        for k, v in grid_attrs.items()
+    }
+
+    if grid_type == "RandomGrid":
+        grid = RandomGrid(
+            grid_attrs["special_states"],
+            grid_attrs["special_states_prime"],
+            jnp.array(grid_attrs["special_states_rewards"]),
+            n_rows=grid_attrs["n_rows"],
+            n_cols=grid_attrs["n_cols"],
+        )
+    elif grid_type == "OptimalGrid":
+        grid = OptimalGrid(
+            grid_attrs["special_states"],
+            grid_attrs["special_states_prime"],
+            jnp.array(grid_attrs["special_states_rewards"]),
+            n_rows=grid_attrs["n_rows"],
+            n_cols=grid_attrs["n_cols"],
+        )
+    else:
+        raise ValueError(f"{grid_type} not of class RandomGrid or OptimalGrid")
+
+    v = grid.estimate_state_value(iter=grid_attrs["iter"])
+    policy = v_policy(v, [[0, 0], [1, 3]])
+    plots = []
+    if cfg.plots.gridworld:
+        plots.append(plot_gridworld(v, grid, label=cfg.plots.label))
+    if cfg.plots.v:
+        plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
+    if cfg.plots.policy:
+        plots.append(plot_policy(policy))
+    p = subplot(*plots, rows=1, cols=len(plots), figsize=tuple(cfg.plots.figsize))
+
+    if cfg.experiment.upload:
+        hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
+        wandb.init(
+            project="rlbook",
+            dir="./logs/",
+            group="gridworlds",
+            config=hp,
+            tags=[hp["tag"]],
+        )
+        wandb.log(
+            {"Reward Distribution": wandb.Image(p)},
+            commit=False,
+        )
+        wandb.finish()
+    else:
+        plt.show()
+
+
+if __name__ == "__main__":
+    main()
