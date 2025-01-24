@@ -1,0 +1,22 @@
+defaults:
+  - _self_ # Base config.yaml overrides defaults, see: https://hydra.cc/docs/upgrades/1.0_to_1.1/default_composition_order/
+  - grid: example_3_5_random_grid
+  - plots: example_3_5_random_grid
+
+experiment:
+  name: gridworld 
+  tag: default
+  upload: false
+
+hydra:
+  run:
+    dir: ./logs/hydra/${grid._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ./logs/hydra/${grid._target_}
+    subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - run
+          - upload

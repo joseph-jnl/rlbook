@@ -1,0 +1,5 @@
+gridworld: True
+v: True
+policy: False
+label: True
+figsize: [12, 8]

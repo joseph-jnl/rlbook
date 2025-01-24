@@ -253,7 +253,7 @@ def plot_policy(policy):
     return p
 
 
-@hydra.main(config_path="configs", config_name="defaults", version_base="1.3")
+@hydra.main(config_path="configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig):
     local_logger.info("Run in debug mode by setting hydra.verbose=true")
     if not cfg.experiment.upload:
@@ -287,14 +287,19 @@ def main(cfg: DictConfig):
     else:
         raise ValueError(f"{grid_type} not of class RandomGrid or OptimalGrid")
 
+    local_logger.info(f"Estimating state value function using for {grid_type}")
     v = grid.estimate_state_value(iter=grid_attrs["iter"])
-    policy = v_policy(v, [[0, 0], [1, 3]])
+
     plots = []
     if cfg.plots.gridworld:
+        local_logger.info("Plotting gridworld states setup")
         plots.append(plot_gridworld(v, grid, label=cfg.plots.label))
     if cfg.plots.v:
+        local_logger.info("Plotting state value function")
         plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
     if cfg.plots.policy:
+        local_logger.info("Plotting policy")
+        policy = v_policy(v, [[0, 0], [1, 3]])
         plots.append(plot_policy(policy))
     p = subplot(*plots, rows=1, cols=len(plots), figsize=tuple(cfg.plots.figsize))
 
