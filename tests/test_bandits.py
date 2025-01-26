@@ -25,6 +25,7 @@ def egreedy_bandit(testbed_fixed):
     return EpsilonGreedy(np.zeros(testbed_fixed.expected_values["mean"].size))
 
 
+@pytest.mark.integration
 def test_multirun_bandit_randomness(egreedy_bandit, testbed_fixed):
     """Test that parallel runs are using different random seeds resulting in different actions"""
 

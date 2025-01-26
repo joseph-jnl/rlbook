@@ -26,7 +26,7 @@ optimal_3_8_answer = array(
 )
 
 
-@pytest.mark.jax
+@pytest.mark.integration
 def test_random_state_value_function():
     grid = RandomGrid(
         [[0, 0], [1, 3]], [[4, 2], [1, 3]], array([10, 5]), n_rows=5, n_cols=5
@@ -35,7 +35,7 @@ def test_random_state_value_function():
     assert allclose(state_value_estimate, random_3_2_answer)
 
 
-@pytest.mark.jax
+@pytest.mark.integration
 def test_optimal_value_function():
     grid = OptimalGrid(
         [[0, 0], [1, 3]], [[4, 2], [1, 3]], array([10, 5]), n_rows=5, n_cols=5
