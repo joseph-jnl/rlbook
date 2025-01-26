@@ -23,7 +23,12 @@ pip install uv
 
 ### Install the rlbook environment via uv:
 ```bash
-uv sync
+uv sync --extra cpu
+```
+
+or if you have a gpu:
+```bash
+uv sync --extra gpu
 ```
 
 Run commands using the rlbook environment via uv:
