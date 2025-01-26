@@ -1,5 +1,6 @@
-gridworld: True
-v: True
-policy: True
-label: True
-figsize: [12, 8]
+plots:
+  gridworld: True
+  v: True
+  policy: True
+  label: True
+  figsize: [12, 8]
