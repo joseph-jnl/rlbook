@@ -1,3 +1,6 @@
+# ruff: noqa: F722
+# https://docs.kidger.site/jaxtyping/faq/#flake8-or-ruff-are-throwing-an-error
+
 import logging
 from string import ascii_uppercase
 
@@ -33,7 +36,7 @@ from rlbook.plots.plotnine_utils import subplot
 
 local_logger = logging.getLogger("experiment")
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
-config.update("jax_platforms", "cuda") # Assume GPU available
+config.update("jax_platforms", "cuda")  # Assume GPU available
 
 
 def plot_state_reward(v, grid: Grid, label=True):
