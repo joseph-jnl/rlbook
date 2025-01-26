@@ -1,3 +1,6 @@
+# ruff: noqa: F722
+# https://docs.kidger.site/jaxtyping/faq/#flake8-or-ruff-are-throwing-an-error
+
 from abc import ABCMeta, abstractmethod
 
 import jax.numpy as jnp
