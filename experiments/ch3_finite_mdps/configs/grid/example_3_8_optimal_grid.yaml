@@ -1,0 +1,10 @@
+# RandomGrid, OptimalGrid 
+grid: 
+  _target_: rlbook.gridworlds.grids.OptimalGrid
+  n_rows: 5
+  n_cols: 5
+  special_states: [[0, 0], [1, 3]]
+  special_states_prime: [[4, 2], [1, 3]]
+  special_states_rewards: [10, 5]
+  iter: 1000
+  discount: 0.9

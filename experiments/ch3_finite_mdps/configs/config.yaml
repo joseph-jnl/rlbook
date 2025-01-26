@@ -1,0 +1,40 @@
+defaults:
+  - _self_ # Defaults overwrite base config.yaml, see: https://hydra.cc/docs/upgrades/1.0_to_1.1/default_composition_order/
+  - grid: example_3_5_random_grid
+  - plots: example_3_5_random_grid
+
+experiment:
+  name: gridworld 
+  tag: default
+  upload: false
+
+hydra:
+  run:
+    dir: ./logs/hydra/${grid._target_}/${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ./logs/hydra/${grid._target_}
+    subdir: ${hydra.job.override_dirname}${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - run
+          - upload
+
+grid:
+  # RandomGrid, OptimalGrid 
+  _target_: rlbook.gridworlds.grids.OptimalGrid
+  n_rows: 5
+  n_cols: 5
+  special_states: [[0, 0], [1, 3]]
+  special_states_prime: [[4, 2], [1, 3]]
+  special_states_rewards: [10, 5]
+  iter: 1000
+  discount: 0.9
+
+plots:
+  gridworld: True
+  v: True
+  policy: True
+  label: True
+  figsize: [12, 8]
