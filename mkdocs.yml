@@ -1,0 +1,4 @@
+site_name: joseph-jnl rlbook
+site_url: https//joseph-jnl.github.io/rlbook
+theme:
+  name: material

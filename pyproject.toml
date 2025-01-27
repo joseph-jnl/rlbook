@@ -39,4 +39,5 @@ dev = [
     "austin-dist>=3.7.0",
     "jupyterlab>=4.2.5",
     "ruff>=0.8.0",
+    "mkdocs-material>=9.5.50",
 ]
