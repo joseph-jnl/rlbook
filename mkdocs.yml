@@ -1,4 +1,27 @@
-site_name: joseph-jnl rlbook
+site_name: "rlbook: joseph-jnl"
+
 site_url: https://joseph-jnl.github.io/rlbook
+repo_url: https://github.com/joseph-jnl/rlbook
+
 theme:
   name: material
+  palette:
+    scheme: slate
+    primary: black
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+- search
+- mkdocstrings:
+    handlers:
+      python:
+        paths: [src]
+        options:
+          heading_level: 2
+          show_root_heading: true
+nav:
+  - Home: index.md
+  - API:
+    - Bandits: api_bandits.md
+    - Grid Worlds: api_gridworlds.md
