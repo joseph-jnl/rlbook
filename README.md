@@ -5,7 +5,7 @@
 
 Code for my walkthrough of: *Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto* (http://incompleteideas.net/book/the-book.html) 
 
-## Setup
+## Installation
 
 ### Install uv (for linux below):
 ```bash
