@@ -1,8 +1,7 @@
-# rlbook
-
 ![ci-cd](https://github.com/joseph-jnl/rlbook/actions/workflows/ci-cd.yml/badge.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+<h1 align='center'>rlbook</h1>
 
 Code for my walkthrough of: *Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto* (http://incompleteideas.net/book/the-book.html) 
 
@@ -50,6 +49,9 @@ Login to wandb via:
    wandb login
 ```
 
+## Documentation
+Available at https://joseph-jnl.github.io/rlbook/.
+
 ## Quickstart
 Algorithm implementations are located in the `/src` directory while the scaffolding code/notebooks for recreating/exploring Sutton & Barto are segmented into the `experiments/` directory.  
 
@@ -66,4 +68,4 @@ Further details on experimental setup and results can be found at corresponding 
 
 ## Chapter Links
 
-- [Chapter 2: Multi-armed Bandits](https://github.com/joseph-jnl/rlbook/tree/dev/experiments/ch2_bandits)
+- [Chapter 2: Multi-armed Bandits](https://joseph-jnl.github.io/rlbook/chap2_bandits)
