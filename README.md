@@ -3,25 +3,25 @@
 
 <h1 align='center'>rlbook</h1>
 
-Code for my walkthrough of: *Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto* (http://incompleteideas.net/book/the-book.html) 
+Code for my walkthrough of: [*Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto*](http://incompleteideas.net/book/the-book.html) 
 
-## Setup
+## Installation
 
 ### Install uv (for linux below):
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-or with pip
-```
-# With pip.
-pip install uv
 ```
 [Link to instructions for other OS's](https://docs.astral.sh/uv/getting-started/installation/)  
 
 
 ### Install the rlbook environment via uv:
 ```bash
-uv sync --extra cpu
+uv sync --extra gpu
+```
+
+Run commands by first activating the rlbook venv (this is my preferred workflow):
+```bash
+source ./venv/bin/activate
 ```
 
 ## Documentation
