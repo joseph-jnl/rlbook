@@ -1,49 +1,5 @@
 Code for my walkthrough of: [*Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto*](http://incompleteideas.net/book/the-book.html) 
 
-## Setup
-
-### Install uv (for linux below):
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-or with pip
-```
-# With pip.
-pip install uv
-```
-[Link to instructions for other OS's](https://docs.astral.sh/uv/getting-started/installation/)  
-
-  
-
-### Install the rlbook environment via uv:
-```bash
-uv sync --extra cpu
-```
-
-or if you have a gpu:
-```bash
-uv sync --extra gpu
-```
-
-Run commands using the rlbook environment via uv:
-```bash
-uv run run.py
-```
-or by first activating the rlbook venv (this is my preferred workflow):
-```bash
-source ./venv/bin/activate
-```
-
-### (Optional) Setup wandb for experiment tracking
-Sign up for an account at wandb: https://app.wandb.ai/login?signup=true  
-
-Copy the api key from: https://wandb.ai/authorize  
-
-Login to wandb via:  
-```bash
-   wandb login
-```
-
 ## Quickstart
 Algorithm implementations are located in the `/src` directory while the scaffolding code/notebooks for recreating/exploring Sutton & Barto are segmented into the `experiments/` directory.  
 
