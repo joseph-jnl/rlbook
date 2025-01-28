@@ -23,7 +23,7 @@ plugins:
 nav:
   - Home: index.md
   - Chapters:
-    - "Chapter 2: Multi-armed Bandits"
+    - "2: Multi-armed Bandits": chap2_bandits.md
   - API:
     - Bandits: api_bandits.md
     - Grid Worlds: api_gridworlds.md

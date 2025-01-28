@@ -34,7 +34,6 @@ averages as their action-value estimates.
 Figure 2.2 (rlbook): The `+bandit.random_argmax=true` flag was used to switch over to an argmax implementation that randomizes between tiebreakers rather than first occurence used in the default numpy implementation to better align with the original example. 
 [Link to wandb artifact.](https://wandb.ai/josephjnl/rlbook/reports/optimal_action_percent-24-11-10-21-37-29---VmlldzoxMDExMzMyNQ)
 
-[🔼 Back to top](#chapter-2---multi-armed-bandits)
 
 ***
 
@@ -60,7 +59,6 @@ Both methods used a constant step-size parameter, alpha=0.1
 Figure 2.3 (rlbook): The `+bandit.random_argmax=true` flag was used to switch over to an argmax implementation that randomizes between tiebreakers rather than first occurence used in the default numpy implementation to better align with the original example.
 [Link to wandb artifact](https://api.wandb.ai/links/josephjnl/53gxgbcc)
 
-[🔼 Back to top](#chapter-2---multi-armed-bandits)
 
 ***
 
@@ -86,7 +84,6 @@ it selects randomly among the as-yet-untried actions.
 Figure 2.4 (rlbook): rlbook UCB implementation. Na, the array that keeps the count of how many times an action has been chosen was initialized with 1e-100 instead of 0 to prevent a divide by zero error.  
 [Link to wandb artifact](https://api.wandb.ai/links/josephjnl/ol9eknr9)
 
-[🔼 Back to top](#chapter-2---multi-armed-bandits)
 
 ***
 
@@ -142,5 +139,3 @@ Figure 2.5 (Sutton & Barto): Average performance of the gradient bandit algorith
 ![image](https://github.com/user-attachments/assets/3fbf3483-0b24-4da2-98d5-eb1034b846ac)  
 Figure 2.5 (rlbook): Note that the baseline R hat t did not include Rt, following the intent of equation 2.12 where "R hat t is the average of the rewards up to but not including time t". This is different from the Sutton and Barto empirical results shown inFigure 2.5 where they have the footnote: "In the empirical results in this chapter, the baseline R hat t also included Rt."
 [Link to wandb artifact](https://api.wandb.ai/links/josephjnl/df7003q5)
-
-[🔼 Back to top](#chapter-2---multi-armed-bandits)
