@@ -1,4 +1,4 @@
-Code for my walkthrough of: *Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto* (http://incompleteideas.net/book/the-book.html) 
+Code for my walkthrough of: [*Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto*](http://incompleteideas.net/book/the-book.html) 
 
 ## Setup
 

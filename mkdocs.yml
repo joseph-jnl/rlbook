@@ -22,6 +22,8 @@ plugins:
           show_root_heading: true
 nav:
   - Home: index.md
+  - Chapters:
+    - "Chapter 2: Multi-armed Bandits"
   - API:
     - Bandits: api_bandits.md
     - Grid Worlds: api_gridworlds.md
