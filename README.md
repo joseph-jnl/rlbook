@@ -13,7 +13,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 [Link to instructions for other OS's](https://docs.astral.sh/uv/getting-started/installation/)  
 
-  
 
 ### Install the rlbook environment via uv:
 ```bash
