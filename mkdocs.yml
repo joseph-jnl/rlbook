@@ -10,6 +10,8 @@ theme:
     primary: black
   icon:
     repo: fontawesome/brands/github
+  features:
+    - navigation.expand
 
 plugins:
 - search
