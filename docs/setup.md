@@ -22,7 +22,7 @@ or if you have a gpu available:
 uv sync --extra gpu
 ```
 
-Run commands using the rlbook environment via uv:
+## Run commands using the rlbook environment via uv:
 ```bash
 uv run run.py
 ```
@@ -32,11 +32,11 @@ source ./venv/bin/activate
 ```
 
 ## (Optional) Setup wandb for experiment tracking
-Sign up for an account at wandb: https://app.wandb.ai/login?signup=true  
+- Sign up for an account at wandb: https://app.wandb.ai/login?signup=true  
 
-Copy the api key from: https://wandb.ai/authorize  
+- Copy the api key from: https://wandb.ai/authorize  
 
-Login to wandb via:  
-   ```bash
-   wandb login
+- Login to wandb via:  
+```bash
+wandb login
 ```
