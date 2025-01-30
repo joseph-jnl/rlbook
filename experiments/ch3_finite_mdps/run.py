@@ -188,13 +188,13 @@ def v_policy(
                 policy[i, j] = [90, 180, 270, 0]
             else:
                 if i != 0:
-                    actions["up"] = v[i - 1, j]
+                    actions["up"] = round(v[i - 1, j], ndigits=1)
                 if i != v.shape[0] - 1:
-                    actions["down"] = v[i + 1, j]
+                    actions["down"] = round(v[i + 1, j], ndigits=1)
                 if j != 0:
-                    actions["left"] = v[i, j - 1]
+                    actions["left"] = round(v[i, j - 1], ndigits=1)
                 if j != v.shape[0] - 1:
-                    actions["right"] = v[i, j + 1]
+                    actions["right"] = round(v[i, j + 1], ndigits=1)
                 max_val = max(actions.values())
                 max_rewards = [k for k, v in actions.items() if v == max_val]
                 policy[i, j] = action_map[tuple(max_rewards)]
