@@ -3,7 +3,7 @@ defaults:
   - grid: example_3_5_random_grid
   - plots: example_3_5_random_grid
 
-experiment:
+wandb:
   name: gridworld 
   tag: default
   upload: false

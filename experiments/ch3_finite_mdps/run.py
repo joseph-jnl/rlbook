@@ -106,7 +106,7 @@ def plot_gridworld(v, grid: Grid, label=True):
             data=df_special_prime,
         )
         + scale_fill_cmap(
-            cmap_name="Pastel1", limits=[df_special.value.min(), df_special.value.max()]
+            cmap_name="Set3", limits=[df_special.value.min(), df_special.value.max()]
         )
         + scale_y_reverse()
         + theme_void()
@@ -140,8 +140,8 @@ def plot_gridworld(v, grid: Grid, label=True):
             + geom_text(
                 aes(label="value"),
                 data=df_reward,
-                nudge_y=-0.25,
-                format_string="(Reward: {})",
+                nudge_y=-0.275,
+                format_string="(R: {})",
             )
         )
     return p
@@ -259,7 +259,7 @@ def plot_policy(policy):
 @hydra.main(config_path="configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig):
     local_logger.info("Run in debug mode by setting hydra.verbose=true")
-    if not cfg.experiment.upload:
+    if not cfg.wandb.upload:
         local_logger.info(
             "wandb upload set to false, local run only. Set experiment.upload=true to track experiment"
         )
@@ -302,12 +302,12 @@ def main(cfg: DictConfig):
         plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
     if cfg.plots.policy:
         local_logger.info("Plotting policy")
-        policy = v_policy(v, [[0, 0], [1, 3]])
+        policy = v_policy(v, grid_attrs["special_states"])
         plots.append(plot_policy(policy))
     p = subplot(*plots, rows=1, cols=len(plots), figsize=tuple(cfg.plots.figsize))
 
-    if cfg.experiment.upload:
-        hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.experiment["tag"]
+    if cfg.wandb.upload:
+        hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.wandb["tag"]
         wandb.init(
             project="rlbook",
             dir="./logs/",
@@ -316,7 +316,7 @@ def main(cfg: DictConfig):
             tags=[hp["tag"]],
         )
         wandb.log(
-            {"Reward Distribution": wandb.Image(p)},
+            {"State Value Function": wandb.Image(p)},
             commit=False,
         )
         wandb.finish()
