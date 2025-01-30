@@ -12,4 +12,4 @@ python run.py -m run.steps=1000 run.n_runs=2000 +bandit.epsilon=0,0.01,0.1 +band
 Figure 2.3 (rlbook): The `+bandit.random_argmax=true` flag was used to switch over to an argmax implementation that randomizes between tiebreakers rather than first occurence used in the default numpy implementation to better align with the original example.
 [Link to wandb artifact](https://api.wandb.ai/links/josephjnl/53gxgbcc)
 
-Further details on experimental setup and results can be found corresponding chapter docs.
+Further details on experimental setup and results can be found within the corresponding chapter docs.
