@@ -1,5 +1,25 @@
 Code for my walkthrough of: [*Reinforcement Learning An Introduction by Richard Sutton and Andrew Barto*](http://incompleteideas.net/book/the-book.html) 
 
+<div class="grid cards" markdown>
+
+-   :material-slot-machine:{ .lg .middle } __Bandits__
+
+    ---
+
+    Chapter 2: Multi-armed Bandits
+
+    [:octicons-arrow-right-24: Chapter 2](chap2_bandits.md)
+
+-   :material-grid:{ .lg .middle } __Finite MDPs__
+
+    ---
+
+    Chapter 3: Finite Markov Decision Processes
+
+    [:octicons-arrow-right-24: Chapter 3](chap3_finite_mdps.md)
+
+</div>
+
 ## Quickstart
 Algorithm implementations are located in the `/src` directory while the scaffolding code/notebooks for recreating/exploring Sutton & Barto are segmented into the `experiments/` directory.  
 

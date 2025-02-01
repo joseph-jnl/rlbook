@@ -1,0 +1,6 @@
+gridworld: False
+v: True
+policy: True 
+label: True
+figsize: [8, 20]
+iters: [0,1,2,3,10,1000]

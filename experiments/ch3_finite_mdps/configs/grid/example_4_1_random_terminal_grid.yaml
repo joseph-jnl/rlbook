@@ -1,0 +1,7 @@
+_target_: rlbook.gridworlds.grids.RandomTerminalGrid
+n_rows: 4
+n_cols: 4
+special_states: [[3, 0], [3, 0]]
+special_states_rewards: [0, 0]
+iter: 1000
+discount: 1.0
