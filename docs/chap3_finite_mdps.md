@@ -28,3 +28,13 @@ python run.py grid.n_rows=10 grid.n_cols=10 grid.special_states=[[0,0,8,1],[1,3,
 /// caption
 Example of creating a new gridworld with arbitrary size and rewards.
 ///
+
+## Figure 4.1 Convergence of iterative policy eval
+Recreate the following experiments using the cli command below:
+```bash
+python run.py grid=example_4_1_random_terminal_grid plots=example_4_1_random_terminal_grid
+```
+![image](https://github.com/user-attachments/assets/f902c80a-080e-4330-8830-beef4a5470fc)
+/// caption
+Figure 4.1: Convergence of iterative policy evaluation on a small gridworld.
+///

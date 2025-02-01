@@ -31,7 +31,7 @@ from plotnine import (
     theme_void,
 )
 
-from rlbook.gridworlds.grids import Grid, OptimalGrid, RandomGrid
+from rlbook.gridworlds.grids import Grid, OptimalGrid, RandomGrid, RandomTerminalGrid
 from rlbook.plots.plotnine_utils import subplot
 
 local_logger = logging.getLogger("experiment")
@@ -202,13 +202,13 @@ def v_policy(
     return policy
 
 
-def plot_policy(policy):
+def plot_policy(policy, special_states=None):
     df = pd.DataFrame(policy).reset_index().melt("index").astype({"variable": "string"})
     df.columns = ["row", "column", "value"]
+    df["column"] = df["column"].astype(int)
     df[["up", "left", "down", "right"]] = pd.DataFrame(
         df["value"].to_list(), index=df.index
     ).apply(np.deg2rad)
-
     p = (
         ggplot(
             df,
@@ -253,6 +253,17 @@ def plot_policy(policy):
         arrow=arrow(ends="last", type="closed", length=0.075),
         na_rm=True,
     )
+
+    if special_states:
+        df_special = pd.DataFrame(
+            {
+                "row": special_states[0],
+                "column": special_states[1],
+                "value": list(range(len(special_states[0]))),
+            }
+        ).astype({"row": "int64", "column": "int64", "value": "int64"})
+        p = p + geom_tile(color="grey", data=df_special)
+
     return p
 
 
@@ -287,24 +298,55 @@ def main(cfg: DictConfig):
             n_rows=grid_attrs["n_rows"],
             n_cols=grid_attrs["n_cols"],
         )
+    elif grid_type == "RandomTerminalGrid":
+        grid = RandomTerminalGrid(
+            grid_attrs["special_states"],
+            jnp.array(grid_attrs["special_states_rewards"]),
+            n_rows=grid_attrs["n_rows"],
+            n_cols=grid_attrs["n_cols"],
+        )
     else:
-        raise ValueError(f"{grid_type} not of class RandomGrid or OptimalGrid")
+        raise ValueError(
+            f"{grid_type} not of class RandomGrid, RandomTerminalGrid or OptimalGrid"
+        )
 
     local_logger.info(f"Estimating state value function using for {grid_type}")
-    v = grid.estimate_state_value(iter=grid_attrs["iter"])
 
     plots = []
-    if cfg.plots.gridworld:
-        local_logger.info("Plotting gridworld states setup")
-        plots.append(plot_gridworld(v, grid, label=cfg.plots.label))
-    if cfg.plots.v:
-        local_logger.info("Plotting state value function")
-        plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
-    if cfg.plots.policy:
-        local_logger.info("Plotting policy")
-        policy = v_policy(v, grid_attrs["special_states"])
-        plots.append(plot_policy(policy))
-    p = subplot(*plots, rows=1, cols=len(plots), figsize=tuple(cfg.plots.figsize))
+    if "iters" in cfg.plots:
+        for i in cfg.plots.iters:
+            v = grid.estimate_state_value(iter=i)
+            if cfg.plots.gridworld:
+                local_logger.info("Plotting gridworld states setup")
+                plots.append(plot_gridworld(v, grid, label=cfg.plots.label))
+            if cfg.plots.v:
+                local_logger.info("Plotting state value function")
+                plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
+            if cfg.plots.policy:
+                local_logger.info("Plotting policy")
+                policy = v_policy(v, grid_attrs["special_states"])
+                plots.append(
+                    plot_policy(policy, special_states=grid_attrs["special_states"])
+                )
+        p = subplot(
+            *plots,
+            rows=len(cfg.plots.iters),
+            cols=int(len(plots) / len(cfg.plots.iters)),
+            figsize=tuple(cfg.plots.figsize),
+        )
+    else:
+        v = grid.estimate_state_value(iter=grid_attrs["iter"])
+        if cfg.plots.gridworld:
+            local_logger.info("Plotting gridworld states setup")
+            plots.append(plot_gridworld(v, grid, label=cfg.plots.label))
+        if cfg.plots.v:
+            local_logger.info("Plotting state value function")
+            plots.append(plot_state_reward(v, grid, label=cfg.plots.label))
+        if cfg.plots.policy:
+            local_logger.info("Plotting policy")
+            policy = v_policy(v, grid_attrs["special_states"])
+            plots.append(plot_policy(policy))
+        p = subplot(*plots, rows=1, cols=len(plots), figsize=tuple(cfg.plots.figsize))
 
     if cfg.wandb.upload:
         hp["tag"] = "debug" if HydraConfig.get().verbose else cfg.wandb["tag"]
