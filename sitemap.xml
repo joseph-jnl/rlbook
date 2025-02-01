@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/api_bandits/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/api_gridworlds/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/chap2_bandits/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/chap3_finite_mdps/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+    <url>
+         <loc>https://joseph-jnl.github.io/rlbook/setup/</loc>
+         <lastmod>2025-02-01</lastmod>
+    </url>
+</urlset>
