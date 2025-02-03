@@ -12,7 +12,9 @@ theme:
     repo: fontawesome/brands/github
   features:
     - navigation.expand
+    - navigation.tabs
     - content.code.copy
+    - navigation.top
 plugins:
 - search
 - mkdocstrings:
